@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metal Snake</title>
+  
+  <!-- Preload game font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: 'Press Start 2P', cursive;
+    }
+    #gameCanvas {
+      /* Pixelated rendering for crisp graphics */
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    /* Loading screen */
+    #loadingScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      z-index: 1000;
+      transition: opacity 0.5s;
+    }
+    .loading-text {
+      margin-top: 20px;
+      font-size: 24px;
+      color: #fff;
+    }
+    .loading-bar {
+      width: 200px;
+      height: 20px;
+      background: #333;
+      margin-top: 20px;
+      border: 2px solid #fff;
+    }
+    .loading-progress {
+      width: 0%;
+      height: 100%;
+      background: #0f0;
+      transition: width 0.3s;
+    }
+    /* Tap-to-start message for mobile */
+    #tapToStart {
+      margin-top: 20px;
+      font-size: 20px;
+      display: none;
+      color: #fff;
+    }
+    /* Instructions panel */
+    #instructions {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 12px;
+      text-align: center;
+      opacity: 0.7;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading screen -->
+  <div id="loadingScreen">
+    <div class="loading-text">Loading Metal Snake</div>
+    <div class="loading-bar">
+      <div class="loading-progress"></div>
+    </div>
+    <div id="tapToStart">Tap to Start</div>
+  </div>
+
+  <!-- Game canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Instructions -->
+  <div id="instructions">
+    Use Arrow Keys to move | Esc to Pause | M to toggle Music<br>
+    Collect food to grow and power-ups for special abilities
+  </div>
+
+  <!-- Game modules -->
+  <script type="module">
+    import { Game } from './js/core/game.js';
+
+    // Function to hide the loading screen
+    function hideLoadingScreen() {
+      const loadingScreen = document.getElementById('loadingScreen');
+      loadingScreen.style.opacity = '0';
+      setTimeout(() => {
+        loadingScreen.style.display = 'none';
+      }, 500);
+    }
+
+    // Mobile start handler: try to resume AudioContext and hide loading screen.
+    function mobileStartHandler() {
+      if (window.gameInstance && window.gameInstance.soundManager.audioCtx &&
+          window.gameInstance.soundManager.audioCtx.state === 'suspended') {
+        window.gameInstance.soundManager.audioCtx.resume();
+        window.gameInstance.soundManager.playBackgroundMusic();
+      }
+      hideLoadingScreen();
+      document.removeEventListener('touchstart', mobileStartHandler);
+    }
+
+    // Fallback timer to hide the loading screen after 6 seconds.
+    setTimeout(() => {
+      hideLoadingScreen();
+    }, 6000);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('gameCanvas');
+      const game = new Game(canvas);
+      window.gameInstance = game; // Expose the game instance globally
+      
+      game.start().then(() => {
+        // Hide the loading screen once the game has started.
+        hideLoadingScreen();
+        // If touch is supported, show the tap-to-start message and attach handler.
+        if ('ontouchstart' in window) {
+          const tapMsg = document.getElementById('tapToStart');
+          tapMsg.style.display = 'block';
+          document.addEventListener('touchstart', mobileStartHandler);
+        }
+      }).catch(error => {
+        console.error('Error starting game:', error);
+        hideLoadingScreen();
+      });
+
+      // Prevent scrolling with arrow keys
+      window.addEventListener('keydown', (e) => {
+        if ([37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+          e.preventDefault();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
