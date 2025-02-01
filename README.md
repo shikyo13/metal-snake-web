@@ -1,6 +1,6 @@
 # Metal Snake
 
-Metal Snake is a retro-styled snake game built for the web using HTML5 Canvas and modern JavaScript (ES6 modules). The game features smooth client‑side rendering with dynamic visual effects, multiple power‑ups with distinct audio and visual feedback, combo scoring, and responsive design for both desktop and mobile devices.
+Metal Snake is a retro-styled snake game with a Heavy Metal theme built for the web using HTML5 Canvas and modern JavaScript (ES6 modules). The game features smooth client‑side rendering with dynamic visual effects, multiple power‑ups with distinct audio and visual feedback, combo scoring, and responsive design for both desktop and mobile devices.
 
 ## Table of Contents
 
