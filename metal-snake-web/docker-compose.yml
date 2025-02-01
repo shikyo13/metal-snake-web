@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  metal-snake-web:
+    build: .
+    ports:
+      - "8085:80"
+    volumes:
+      # Mount the game assets volume to persist high scores
+      - metal-snake-data:/usr/share/nginx/html/data
+    restart: always
+
+volumes:
+  metal-snake-data:
+    # Create a named volume for persisting game data
+    driver: local
