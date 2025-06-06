@@ -1,4 +1,4 @@
-import { Direction } from '../config/constants.js';
+import { Direction, SNAKE_CONFIG, TIMING } from '../config/constants.js';
 
 export class Snake {
   constructor(config) {
@@ -8,11 +8,13 @@ export class Snake {
 
   reset() {
     // Initialize snake with starting position and properties
-    this.body = [
-      { x: 15, y: 10 },
-      { x: 14, y: 10 },
-      { x: 13, y: 10 }
-    ];
+    this.body = [];
+    for (let i = 0; i < SNAKE_CONFIG.START_LENGTH; i++) {
+      this.body.push({
+        x: SNAKE_CONFIG.START_X - i,
+        y: SNAKE_CONFIG.START_Y
+      });
+    }
     this.direction = Direction.RIGHT;
     this.nextDirection = Direction.RIGHT;
     this.invincible = false;
@@ -25,7 +27,7 @@ export class Snake {
     // Handle direction changes with input buffering
     if (newDir !== Direction.opposite(this.direction)) {
       const now = performance.now();
-      if (now - this.lastMoveTime < 100) {
+      if (now - this.lastMoveTime < TIMING.INPUT_BUFFER_DELAY_MS) {
         this.moveBuffer.push(newDir);
       } else {
         this.nextDirection = newDir;
@@ -37,7 +39,7 @@ export class Snake {
   move(foodPos, obstacles) {
     // Process buffered moves
     if (this.moveBuffer.length > 0 && 
-        performance.now() - this.lastMoveTime >= 100) {
+        performance.now() - this.lastMoveTime >= TIMING.INPUT_BUFFER_DELAY_MS) {
       this.nextDirection = this.moveBuffer.shift();
       this.lastMoveTime = performance.now();
     }
