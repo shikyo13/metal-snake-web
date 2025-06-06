@@ -140,6 +140,7 @@ export class Game {
         this.state = GameState.PLAY;
         this.resetGame();
         this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
+        this.enterFullscreen();
       }
     });
     
@@ -228,6 +229,29 @@ export class Game {
     this.renderer.resize(window.innerWidth, window.innerHeight);
     if (this.renderer.updateOffscreenBackground) {
       this.renderer.updateOffscreenBackground();
+    }
+  }
+  
+  enterFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen().catch(err => {
+        console.log('Fullscreen request failed:', err);
+      });
+    } else if (elem.webkitRequestFullscreen) { // Safari
+      elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) { // IE/Edge
+      elem.msRequestFullscreen();
+    }
+  }
+  
+  exitFullscreen() {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) { // Safari
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) { // IE/Edge
+      document.msExitFullscreen();
     }
   }
 
