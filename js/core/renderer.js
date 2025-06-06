@@ -32,6 +32,10 @@ export class Renderer {
   }
 
   resize(width, height) {
+    // Reserve space for the instruction box at bottom (approximately 100px)
+    const instructionHeight = 100;
+    const availableHeight = height - instructionHeight;
+    
     // Resize all canvases
     this.canvas.width = width;
     this.canvas.height = height;
@@ -42,13 +46,15 @@ export class Renderer {
     this.offscreenBackground.width = width;
     this.offscreenBackground.height = height;
 
-    // Calculate game dimensions
+    // Calculate game dimensions - use available height to avoid instruction box
     this.cellSize = Math.min(
       Math.floor(width / this.config.GRID_COLS),
-      Math.floor(height / this.config.GRID_ROWS)
+      Math.floor(availableHeight / this.config.GRID_ROWS)
     );
+    
+    // Center the game area horizontally and position it at top
     this.xOffset = Math.floor((width - this.cellSize * this.config.GRID_COLS) / 2);
-    this.yOffset = Math.floor((height - this.cellSize * this.config.GRID_ROWS) / 2);
+    this.yOffset = 10; // Small top margin instead of centering vertically
 
     this.createGradients();
     this.generateNoiseTexture();
