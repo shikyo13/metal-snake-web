@@ -17,6 +17,7 @@ export class Snake {
     }
     this.direction = Direction.RIGHT;
     this.nextDirection = Direction.RIGHT;
+    this.actualDirection = Direction.RIGHT; // Track last actual movement
     this.invincible = false;
     this.size = 1.0;
     this.moveBuffer = [];
@@ -25,10 +26,15 @@ export class Snake {
 
   setDirection(newDir) {
     // Handle direction changes with input buffering
-    if (newDir !== Direction.opposite(this.direction)) {
+    // Check against actualDirection instead of current direction
+    if (newDir !== Direction.opposite(this.actualDirection)) {
       const now = performance.now();
       if (now - this.lastMoveTime < TIMING.INPUT_BUFFER_DELAY_MS) {
-        this.moveBuffer.push(newDir);
+        // Only buffer if it's a valid direction change
+        if (this.moveBuffer.length === 0 || 
+            newDir !== Direction.opposite(this.moveBuffer[this.moveBuffer.length - 1])) {
+          this.moveBuffer.push(newDir);
+        }
       } else {
         this.nextDirection = newDir;
         this.lastMoveTime = now;
@@ -40,11 +46,19 @@ export class Snake {
     // Process buffered moves
     if (this.moveBuffer.length > 0 && 
         performance.now() - this.lastMoveTime >= TIMING.INPUT_BUFFER_DELAY_MS) {
-      this.nextDirection = this.moveBuffer.shift();
-      this.lastMoveTime = performance.now();
+      const bufferedDir = this.moveBuffer.shift();
+      // Double-check the buffered direction is still valid
+      if (bufferedDir !== Direction.opposite(this.actualDirection)) {
+        this.nextDirection = bufferedDir;
+        this.lastMoveTime = performance.now();
+      }
     }
 
-    this.direction = this.nextDirection;
+    // Only update direction if it's valid
+    if (this.nextDirection !== Direction.opposite(this.actualDirection)) {
+      this.direction = this.nextDirection;
+      this.actualDirection = this.direction; // Update actual direction
+    }
     let head = { ...this.body[0] };
 
     // Update head position based on direction
