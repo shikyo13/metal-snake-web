@@ -32,8 +32,8 @@ export class Renderer {
   }
 
   resize(width, height) {
-    // Reserve space for the instruction box at bottom (approximately 100px)
-    const instructionHeight = 100;
+    // Reserve space for the instruction box at bottom (approximately 50px with new compact style)
+    const instructionHeight = 50;
     const availableHeight = height - instructionHeight;
     
     // Resize all canvases
@@ -46,19 +46,38 @@ export class Renderer {
     this.offscreenBackground.width = width;
     this.offscreenBackground.height = height;
 
-    // Calculate game dimensions - use available height to avoid instruction box
-    this.cellSize = Math.min(
-      Math.floor(width / this.config.GRID_COLS),
-      Math.floor(availableHeight / this.config.GRID_ROWS)
-    );
+    // Calculate separate cell dimensions for width and height to use full screen
+    this.cellWidth = Math.floor(width / this.config.GRID_COLS);
+    this.cellHeight = Math.floor(availableHeight / this.config.GRID_ROWS);
     
-    // Center the game area horizontally and position it at top
-    this.xOffset = Math.floor((width - this.cellSize * this.config.GRID_COLS) / 2);
-    this.yOffset = 10; // Small top margin instead of centering vertically
+    // For backwards compatibility, keep cellSize as the minimum dimension
+    // This ensures circular objects still look correct
+    this.cellSize = Math.min(this.cellWidth, this.cellHeight);
+    
+    // No offset needed - use full screen
+    this.xOffset = 0;
+    this.yOffset = 0;
 
     this.createGradients();
     this.generateNoiseTexture();
     this.updateOffscreenBackground();
+
+    // Always log resize info for debugging
+    console.log('Resize calculations:', {
+      browserWidth: width,
+      browserHeight: height,
+      availableHeight,
+      cellWidth: this.cellWidth,
+      cellHeight: this.cellHeight,
+      cellSize: this.cellSize,
+      xOffset: this.xOffset,
+      yOffset: this.yOffset,
+      gameWidth: this.cellWidth * this.config.GRID_COLS,
+      gameHeight: this.cellHeight * this.config.GRID_ROWS,
+      gridCols: this.config.GRID_COLS,
+      gridRows: this.config.GRID_ROWS,
+      isFullscreen: document.fullscreenElement !== null
+    });
 
     if (DEBUG) {
       console.log('Renderer resized:', {
@@ -140,25 +159,33 @@ export class Renderer {
     this.drawGrid();
   }
 
+  // Helper method to get grid position
+  getGridPosition(gridX, gridY) {
+    return {
+      x: this.xOffset + gridX * this.cellWidth + this.cellWidth / 2,
+      y: this.yOffset + gridY * this.cellHeight + this.cellHeight / 2
+    };
+  }
+
   drawGrid() {
     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     this.ctx.lineWidth = 1;
 
     // Draw vertical grid lines
     for (let x = 0; x <= this.config.GRID_COLS; x++) {
-      const xPos = this.xOffset + x * this.cellSize;
+      const xPos = this.xOffset + x * this.cellWidth;
       this.ctx.beginPath();
       this.ctx.moveTo(xPos, this.yOffset);
-      this.ctx.lineTo(xPos, this.yOffset + this.config.GRID_ROWS * this.cellSize);
+      this.ctx.lineTo(xPos, this.yOffset + this.config.GRID_ROWS * this.cellHeight);
       this.ctx.stroke();
     }
 
     // Draw horizontal grid lines
     for (let y = 0; y <= this.config.GRID_ROWS; y++) {
-      const yPos = this.yOffset + y * this.cellSize;
+      const yPos = this.yOffset + y * this.cellHeight;
       this.ctx.beginPath();
       this.ctx.moveTo(this.xOffset, yPos);
-      this.ctx.lineTo(this.xOffset + this.config.GRID_COLS * this.cellSize, yPos);
+      this.ctx.lineTo(this.xOffset + this.config.GRID_COLS * this.cellWidth, yPos);
       this.ctx.stroke();
     }
   }
@@ -490,10 +517,10 @@ export class Renderer {
 
   
   gridToScreen(x, y) {
-    // Convert grid coordinates to screen pixels
+    // Convert grid coordinates to screen pixels using rectangular cells
     return {
-      x: x * this.cellSize + this.xOffset,
-      y: y * this.cellSize + this.yOffset
+      x: x * this.cellWidth + this.xOffset,
+      y: y * this.cellHeight + this.yOffset
     };
   }
 

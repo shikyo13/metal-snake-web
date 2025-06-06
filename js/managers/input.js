@@ -94,6 +94,16 @@ export class InputManager {
     
     // Special handling for Escape key
     if (e.key === 'Escape') {
+      // First check if we're in fullscreen and exit it
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+      
+      // Then handle normal escape functions
       if (this.currentState === GameState.PLAY || this.currentState === GameState.PAUSE) {
         this.triggerAction('pause');
       } else if (this.currentState === GameState.HIGHSCORES || 
