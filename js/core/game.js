@@ -1,8 +1,10 @@
 // js/core/game.js
-import { CONFIG, GameState, Direction, PowerUpType } from '../config/constants.js';
+import { CONFIG, GameState, Direction, PowerUpType, SOUND_PRESETS } from '../config/constants.js';
 import { Snake } from './snake.js';
 import { Renderer } from './renderer.js';
 import { AssetLoader } from './assets.js';
+import { CollisionSystem } from '../systems/collision.js';
+import { InputManager } from '../managers/input.js';
 import { ParticleSystem } from '../systems/particle.js';
 import { PowerUpManager } from '../systems/powerup.js';
 import { ComboSystem } from '../systems/combo.js';
@@ -20,7 +22,7 @@ export class Game {
     this.canvas = canvas;
     this.score = 0;
     this.frameCount = 0;
-    this.state = GameState.MENU;
+    this._state = GameState.MENU;
     this.scoreMultiplier = 1;
     this.obstacles = [];
     this.obstaclesEnabled = false;
@@ -36,10 +38,27 @@ export class Game {
     this.bindEvents();
     this.resize();
   }
+  
+  get state() {
+    return this._state;
+  }
+  
+  set state(newState) {
+    this._state = newState;
+    if (this.inputManager) {
+      this.inputManager.setGameState(newState);
+    }
+  }
 
   initializeSystems() {
     // Create asset loader for images and sounds
     this.assetLoader = new AssetLoader();
+    
+    // Initialize collision system
+    this.collisionSystem = new CollisionSystem(this.config);
+    
+    // Initialize input manager
+    this.inputManager = new InputManager();
     
     // Initialize core game systems in the correct order
     this.renderer = new Renderer(this.canvas, this.config, this.assetLoader);
@@ -50,47 +69,132 @@ export class Game {
     this.achievementSystem = new AchievementSystem(this.config);
     this.scoreManager = new ScoreManager(this.config);
     this.soundManager = new SoundManager(this.assetLoader);
+    
+    // Set up input handlers
+    this.setupInputHandlers();
   }
 
   initializeGameState() {
     this.foodPos = this.getRandomPosition();
   }
 
-  getRandomPosition(includePowerUps = false) {
+  getRandomPosition(excludeFood = false) {
     if (!this.snake || !this.snake.body) {
       console.warn('Attempting to get random position before snake initialization');
       return { x: 0, y: 0 };
     }
     
-    // Keep track of all attempts to avoid infinite loops
-    const maxAttempts = 100;
-    for (let attempts = 0; attempts < maxAttempts; attempts++) {
-      const x = Math.floor(Math.random() * this.config.GRID_COLS);
-      const y = Math.floor(Math.random() * this.config.GRID_ROWS);
-      const pos = { x, y };
-      
-      // Check for collisions with all game objects
-      const snakeCollision = this.snake.body.some(seg => seg.x === x && seg.y === y);
-      const foodCollision = this.foodPos && this.foodPos.x === x && this.foodPos.y === y;
-      const obstacleCollision = this.obstacles.some(ob => ob.x === x && ob.y === y);
-      const powerUpCollision = includePowerUps ? 
-        this.powerUpManager.powerUps.some(pu => pu.x === x && pu.y === y) : false;
-      
-      // Return position if no collisions found
-      if (!snakeCollision && !foodCollision && !obstacleCollision && !powerUpCollision) {
-        return pos;
-      }
-    }
+    // Use CollisionSystem to find a valid position
+    const options = {
+      excludeFood: excludeFood,
+      excludePowerUps: false // Always check power-ups
+    };
     
-    console.warn('Could not find valid random position after maximum attempts');
-    return { x: 0, y: 0 };
+    return this.collisionSystem.findValidPosition(this, options);
+  }
+
+  setupInputHandlers() {
+    // Movement controls (only active during gameplay)
+    this.inputManager.on('move_up', () => {
+      if (this.state === GameState.PLAY) {
+        this.snake.setDirection(Direction.UP);
+      }
+    });
+    
+    this.inputManager.on('move_down', () => {
+      if (this.state === GameState.PLAY) {
+        this.snake.setDirection(Direction.DOWN);
+      }
+    });
+    
+    this.inputManager.on('move_left', () => {
+      if (this.state === GameState.PLAY) {
+        this.snake.setDirection(Direction.LEFT);
+      }
+    });
+    
+    this.inputManager.on('move_right', () => {
+      if (this.state === GameState.PLAY) {
+        this.snake.setDirection(Direction.RIGHT);
+      }
+    });
+    
+    // Game controls
+    this.inputManager.on('pause', () => {
+      if (this.state === GameState.PLAY) {
+        this.state = GameState.PAUSE;
+        this.soundManager.playSound('pause', SOUND_PRESETS.PAUSE);
+      } else if (this.state === GameState.PAUSE) {
+        this.state = GameState.PLAY;
+        this.soundManager.playSound('unpause', SOUND_PRESETS.SELECT);
+      }
+    });
+    
+    this.inputManager.on('toggle_music', () => {
+      this.soundManager.toggleMusic();
+    });
+    
+    // Menu controls
+    this.inputManager.on('select', () => {
+      if (this.state === GameState.MENU) {
+        this.state = GameState.PLAY;
+        this.resetGame();
+        this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
+      } else if (this.state === GameState.GAME_OVER) {
+        this.state = GameState.MENU;
+        this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
+      }
+    });
+    
+    this.inputManager.on('highscores', () => {
+      if (this.state === GameState.MENU) {
+        this.state = GameState.HIGHSCORES;
+        this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
+      }
+    });
+    
+    this.inputManager.on('toggle_obstacles', () => {
+      if (this.state === GameState.MENU) {
+        this.obstaclesEnabled = !this.obstaclesEnabled;
+        const soundPreset = this.obstaclesEnabled ? SOUND_PRESETS.TOGGLE_ON : SOUND_PRESETS.TOGGLE_OFF;
+        this.soundManager.playSound('toggle', soundPreset);
+      }
+    });
+    
+    this.inputManager.on('back', () => {
+      if (this.state === GameState.HIGHSCORES || this.state === GameState.SETTINGS) {
+        this.state = GameState.MENU;
+        this.soundManager.playSound('back', SOUND_PRESETS.BACK);
+      }
+    });
+    
+    // Settings controls
+    this.inputManager.on('volume_up', () => {
+      if (this.state === GameState.SETTINGS) {
+        this.soundManager.adjustVolume(0.1);
+        this.soundManager.playSound('volume', SOUND_PRESETS.SELECT);
+      }
+    });
+    
+    this.inputManager.on('volume_down', () => {
+      if (this.state === GameState.SETTINGS) {
+        this.soundManager.adjustVolume(-0.1);
+        this.soundManager.playSound('volume', SOUND_PRESETS.SELECT);
+      }
+    });
   }
 
   bindEvents() {
     // Window event listeners
     window.addEventListener('resize', () => this.resize());
-    window.addEventListener('keydown', (e) => this.handleKeyDown(e));
     document.addEventListener('visibilitychange', () => this.handleVisibilityChange());
+    
+    // Special handler for game over text input
+    window.addEventListener('keydown', (e) => {
+      if (this.state === GameState.GAME_OVER) {
+        this.handleGameOverInput(e);
+      }
+    });
     
     // Handle audio context resuming for both desktop and mobile
     const resumeAudioContext = () => {
@@ -118,130 +222,19 @@ export class Game {
     }
   }
 
-  handleKeyDown(e) {
-    // Try to resume audio context if suspended
-    if (this.soundManager.audioCtx && this.soundManager.audioCtx.state === 'suspended') {
-      this.soundManager.audioCtx.resume();
-    }
-
-    switch (this.state) {
-      case GameState.MENU:
-        this.handleMenuInput(e);
-        break;
-      case GameState.PLAY:
-        this.handleGameInput(e);
-        break;
-      case GameState.PAUSE:
-        this.handlePauseInput(e);
-        break;
-      case GameState.GAME_OVER:
-        this.handleGameOverInput(e);
-        break;
-      case GameState.HIGHSCORES:
-        this.handleHighScoresInput(e);
-        break;
-      case GameState.SETTINGS:
-        this.handleSettingsInput(e);
-        break;
-    }
-  }
-
-  handleMenuInput(e) {
-    switch (e.key.toLowerCase()) {
-      case 'p':
-        this.state = GameState.PLAY;
-        this.resetGame();
-        this.soundManager.playSound('select', { type: 'sine', frequency: 660, duration: 0.1 });
-        break;
-      case 'h':
-        this.state = GameState.HIGHSCORES;
-        this.soundManager.playSound('select', { type: 'sine', frequency: 550, duration: 0.1 });
-        break;
-      case 'o':
-        this.obstaclesEnabled = !this.obstaclesEnabled;
-        this.soundManager.playSound('toggle', { type: 'square', frequency: this.obstaclesEnabled ? 660 : 440, duration: 0.1 });
-        break;
-      case 's':
-        this.state = GameState.SETTINGS;
-        this.soundManager.playSound('select', { type: 'sine', frequency: 440, duration: 0.1 });
-        break;
-    }
-  }
-
-  handleSettingsInput(e) {
-    switch (e.key.toLowerCase()) {
-      case 'm':
-        this.soundManager.toggleMusic();
-        break;
-      case 'arrowup':
-        const bgUp = this.assetLoader.sounds['background'];
-        if (bgUp) {
-          bgUp.volume = Math.min(1.0, bgUp.volume + 0.1);
-        }
-        break;
-      case 'arrowdown':
-        const bgDown = this.assetLoader.sounds['background'];
-        if (bgDown) {
-          bgDown.volume = Math.max(0.0, bgDown.volume - 0.1);
-        }
-        break;
-      case 'escape':
-        this.state = GameState.MENU;
-        this.soundManager.playSound('select', { type: 'sine', frequency: 660, duration: 0.1 });
-        break;
-    }
-  }
-
-  handleHighScoresInput(e) {
-    if (e.key === 'Escape') {
-      this.state = GameState.MENU;
-      this.soundManager.playSound('select', { type: 'sine', frequency: 660, duration: 0.1 });
-    }
-  }
-
-  handlePauseInput(e) {
-    if (e.key === 'Escape' || e.key.toLowerCase() === 'p') {
-      this.state = GameState.PLAY;
-      this.soundManager.playSound('unpause', { type: 'sine', frequency: 440, duration: 0.2 });
-    }
-  }
-
-  handleGameInput(e) {
-    switch (e.key) {
-      case 'ArrowUp':
-        this.snake.setDirection(Direction.UP);
-        break;
-      case 'ArrowDown':
-        this.snake.setDirection(Direction.DOWN);
-        break;
-      case 'ArrowLeft':
-        this.snake.setDirection(Direction.LEFT);
-        break;
-      case 'ArrowRight':
-        this.snake.setDirection(Direction.RIGHT);
-        break;
-      case 'Escape':
-        this.state = GameState.PAUSE;
-        this.soundManager.playSound('pause', { type: 'sine', frequency: 330, duration: 0.2 });
-        break;
-      case 'm':
-        this.soundManager.toggleMusic();
-        break;
-    }
-  }
-
+  // Handle game over name input separately since it needs special handling
   handleGameOverInput(e) {
     if (e.key === 'Enter') {
       const finalName = this.playerName.trim() || "Player";
       this.scoreManager.addScore(finalName, this.tempScore, this.tempMode);
       this.playerName = "";
       this.state = GameState.HIGHSCORES;
-      this.soundManager.playSound('select', { type: 'sine', frequency: 660, duration: 0.1 });
+      this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
     } else if (e.key === 'Backspace') {
       this.playerName = this.playerName.slice(0, -1);
     } else if (e.key.length === 1 && this.playerName.length < 15) {
       this.playerName += e.key;
-      this.soundManager.playSound('type', { type: 'sine', frequency: 880, duration: 0.05 });
+      this.soundManager.playSound('type', SOUND_PRESETS.COLLECT);
     }
   }
 
@@ -541,15 +534,29 @@ export class Game {
       // Load game assets
       await this.assetLoader.loadAssets();
       
-      // Initialize visual elements
-      this.renderer.updateOffscreenBackground();
+      // Check if critical assets failed to load
+      if (this.assetLoader.loadErrors.length > 0) {
+        this.notifications.push({
+          text: "Some assets failed to load",
+          duration: 180,
+          color: this.config.COLORS.YELLOW
+        });
+        console.warn('Asset loading errors:', this.assetLoader.loadErrors);
+      }
       
-      // Start background music (will wait for user interaction)
-      this.soundManager.playBackgroundMusic().catch(err => {
-        if (this.debugMode) {
-          console.log('Audio will play after user interaction');
-        }
-      });
+      // Initialize visual elements only if background image loaded
+      if (this.assetLoader.images['background']) {
+        this.renderer.updateOffscreenBackground();
+      }
+      
+      // Start background music only if it loaded successfully
+      if (this.assetLoader.sounds['background']) {
+        this.soundManager.playBackgroundMusic().catch(err => {
+          if (this.debugMode) {
+            console.log('Audio will play after user interaction');
+          }
+        });
+      }
       
       // Start game loop
       this.gameLoop();
@@ -561,6 +568,12 @@ export class Game {
       return true;
     } catch (err) {
       console.error("Error starting game:", err);
+      // Show error to user
+      this.notifications.push({
+        text: "Error starting game",
+        duration: 300,
+        color: this.config.COLORS.RED
+      });
       // Continue with game loop even if asset loading fails
       this.gameLoop();
       return false;

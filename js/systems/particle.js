@@ -1,3 +1,5 @@
+import { UI_CONFIG } from '../config/constants.js';
+
 // The Particle class represents a single particle in the effect system
 export class Particle {
   constructor(x, y, color, config) {
@@ -46,11 +48,24 @@ export class ParticleSystem {
     this.config = config;
     this.particles = [];      // Active particles
     this.particlePool = [];   // Recycled particles pool for efficiency
+    this.maxPoolSize = UI_CONFIG.PARTICLE_POOL_SIZE || 100;
+    this.maxActiveParticles = UI_CONFIG.MAX_ACTIVE_PARTICLES || 200;
   }
 
   emit(x, y, count, color) {
+    // Limit total active particles to prevent memory issues
+    const availableSlots = Math.max(0, this.maxActiveParticles - this.particles.length);
+    const actualCount = Math.min(count, availableSlots);
+    
+    if (actualCount === 0) {
+      if (this.config.DEBUG) {
+        console.warn('Particle limit reached, skipping emission');
+      }
+      return;
+    }
+    
     // Create specified number of particles
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < actualCount; i++) {
       let particle;
       
       // Reuse particle from pool if available
@@ -72,12 +87,28 @@ export class ParticleSystem {
     this.particles = this.particles.filter(particle => {
       const alive = particle.update();
       
-      // Return dead particles to pool for reuse
-      if (!alive) {
+      // Return dead particles to pool for reuse (if pool isn't full)
+      if (!alive && this.particlePool.length < this.maxPoolSize) {
         this.particlePool.push(particle);
       }
       
       return alive;
     });
+    
+    // Clean up if we have too many particles
+    this.cleanup();
+  }
+  
+  cleanup() {
+    // Remove oldest particles if over limit
+    if (this.particles.length > this.maxActiveParticles) {
+      const toRemove = this.particles.length - this.maxActiveParticles;
+      this.particles.splice(0, toRemove);
+    }
+    
+    // Trim pool if it's too large
+    if (this.particlePool.length > this.maxPoolSize) {
+      this.particlePool.length = this.maxPoolSize;
+    }
   }
 }
