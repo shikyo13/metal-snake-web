@@ -481,7 +481,7 @@ export class Game {
       this.obstacles.forEach(obstacle => {
         const pos = this.renderer.gridToScreen(obstacle.x, obstacle.y);
         this.renderer.ctx.fillStyle = this.config.COLORS.GRAY;
-        this.renderer.ctx.fillRect(pos.x, pos.y, this.renderer.cellSize, this.renderer.cellSize);
+        this.renderer.ctx.fillRect(pos.x, pos.y, this.renderer.cellWidth, this.renderer.cellHeight);
       });
     }
     
