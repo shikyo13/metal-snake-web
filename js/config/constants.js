@@ -123,6 +123,57 @@ export const Direction = {
     }
 };
 
+// Sound presets for consistent audio
+export const SOUND_PRESETS = {
+    SELECT: { type: 'sine', frequency: 660, duration: 0.1 },
+    BACK: { type: 'sine', frequency: 550, duration: 0.1 },
+    TOGGLE_ON: { type: 'square', frequency: 660, duration: 0.1 },
+    TOGGLE_OFF: { type: 'square', frequency: 440, duration: 0.1 },
+    COLLECT: { type: 'sine', frequency: 880, duration: 0.1 },
+    COMBO: { type: 'sine', frequency: 440, duration: 0.1 },
+    PAUSE: { type: 'sine', frequency: 330, duration: 0.2 },
+    DEATH: { type: 'square', frequency: 100, duration: 0.5 },
+    POWERUP_COLLECT: { type: 'sine', frequency: 1000, duration: 0.1 },
+    POWERUP_EXPIRE: { type: 'square', frequency: 300, duration: 0.2 }
+};
+
+// UI Configuration
+export const UI_CONFIG = {
+    NOTIFICATION_DURATION: 60,
+    ACHIEVEMENT_DURATION: 180,
+    MENU_ITEM_SPACING: 40,
+    HUD_LINE_HEIGHT: 30,
+    PARTICLE_POOL_SIZE: 100,
+    MAX_ACTIVE_PARTICLES: 200
+};
+
+// Game timing constants
+export const TIMING = {
+    FRAMES_PER_SECOND: 60,
+    INPUT_BUFFER_DELAY_MS: 100,
+    DEBUG_LOG_INTERVAL_FRAMES: 60,
+    POWERUP_WARNING_FRAMES: 180 // 3 seconds at 60 FPS
+};
+
+// Snake configuration
+export const SNAKE_CONFIG = {
+    START_X: 15,
+    START_Y: 10,
+    START_LENGTH: 3,
+    PULSE_AMPLITUDE: 0.1,
+    PULSE_FREQUENCY: 0.1
+};
+
+// Visual effects
+export const VISUAL_EFFECTS = {
+    NOISE_ALPHA: 15,
+    GRADIENT_STOPS: {
+        INNER: 0,
+        MIDDLE: 0.6,
+        OUTER: 1
+    }
+};
+
 // Power-up type enumeration
 export const PowerUpType = {
     SPEED_BOOST: 'speed_boost',

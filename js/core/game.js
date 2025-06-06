@@ -2,6 +2,7 @@
 import { CONFIG, GameState, Direction, PowerUpType } from '../config/constants.js';
 import { Snake } from './snake.js';
 import { Renderer } from './renderer.js';
+import { AssetLoader } from './assets.js';
 import { ParticleSystem } from '../systems/particle.js';
 import { PowerUpManager } from '../systems/powerup.js';
 import { ComboSystem } from '../systems/combo.js';
@@ -573,42 +574,3 @@ export class Game {
   }
 }
 
-// Asset loader class for managing game resources
-class AssetLoader {
-  constructor() {
-    this.images = {};
-    this.sounds = {};
-  }
-
-  loadImage(name, src) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        this.images[name] = img;
-        resolve(img);
-      };
-      img.onerror = reject;
-      img.src = src;
-    });
-  }
-
-  loadAudio(name, src) {
-    return new Promise((resolve, reject) => {
-      const audio = new Audio();
-      audio.onloadeddata = () => {
-        this.sounds[name] = audio;
-        resolve(audio);
-      };
-      audio.onerror = reject;
-      audio.src = src;
-      audio.loop = (name === 'background');
-    });
-  }
-
-  loadAssets() {
-    return Promise.all([
-      this.loadImage('background', 'assets/images/snake.png'),
-      this.loadAudio('background', 'assets/audio/midnightcarnage.mp3')
-    ]);
-  }
-}
