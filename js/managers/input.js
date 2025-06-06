@@ -27,20 +27,16 @@ export class InputManager {
       
       // Menu navigation
       'Enter': 'select',
+      'p': 'play',
+      'P': 'play',
       'h': 'highscores',
       'H': 'highscores',
       'o': 'toggle_obstacles',
       'O': 'toggle_obstacles',
       'b': 'back',
       'B': 'back',
-      
-      // Settings
-      'ArrowUp': 'menu_up',
-      'ArrowDown': 'menu_down',
-      'w': 'menu_up',
-      'W': 'menu_up',
-      's': 'menu_down',
-      'S': 'menu_down',
+      's': 'settings',
+      'S': 'settings',
       '+': 'volume_up',
       '=': 'volume_up',
       '-': 'volume_down',
@@ -91,26 +87,52 @@ export class InputManager {
   }
   
   handleKeyDown(e) {
+    // Don't process any inputs during game over name entry
+    if (this.currentState === GameState.GAME_OVER) {
+      return;
+    }
+    
+    // Special handling for Escape key
+    if (e.key === 'Escape') {
+      if (this.currentState === GameState.PLAY || this.currentState === GameState.PAUSE) {
+        this.triggerAction('pause');
+      } else if (this.currentState === GameState.HIGHSCORES || 
+                 this.currentState === GameState.SETTINGS) {
+        this.triggerAction('back');
+      }
+      e.preventDefault();
+      return;
+    }
+    
+    // Handle context-specific keys
+    const key = e.key.toLowerCase();
+    
+    // During gameplay, s/S should move down, not open settings
+    if (this.currentState === GameState.PLAY) {
+      if (key === 's') {
+        this.triggerAction('move_down');
+        e.preventDefault();
+        return;
+      }
+    }
+    
+    // In menu, s/S should open settings
+    if (this.currentState === GameState.MENU) {
+      if (key === 's') {
+        this.triggerAction('settings');
+        e.preventDefault();
+        return;
+      }
+    }
+    
     // Get the base action from key mapping
     const action = this.keyMappings[e.key];
     if (!action) return;
     
-    // Context-aware action handling
-    let contextAction = action;
-    
-    // In menu states, arrow keys are for menu navigation
-    if (this.currentState === GameState.MENU || 
-        this.currentState === GameState.HIGHSCORES ||
-        this.currentState === GameState.SETTINGS) {
-      if (action.startsWith('move_')) {
-        contextAction = action.replace('move_', 'menu_');
-      }
-    }
-    
     // Trigger the action
-    if (this.handlers.has(contextAction)) {
+    if (this.handlers.has(action)) {
       e.preventDefault();
-      this.triggerAction(contextAction);
+      this.triggerAction(action);
     }
   }
   

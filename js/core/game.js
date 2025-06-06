@@ -135,6 +135,14 @@ export class Game {
     });
     
     // Menu controls
+    this.inputManager.on('play', () => {
+      if (this.state === GameState.MENU) {
+        this.state = GameState.PLAY;
+        this.resetGame();
+        this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
+      }
+    });
+    
     this.inputManager.on('select', () => {
       if (this.state === GameState.MENU) {
         this.state = GameState.PLAY;
@@ -158,6 +166,13 @@ export class Game {
         this.obstaclesEnabled = !this.obstaclesEnabled;
         const soundPreset = this.obstaclesEnabled ? SOUND_PRESETS.TOGGLE_ON : SOUND_PRESETS.TOGGLE_OFF;
         this.soundManager.playSound('toggle', soundPreset);
+      }
+    });
+    
+    this.inputManager.on('settings', () => {
+      if (this.state === GameState.MENU) {
+        this.state = GameState.SETTINGS;
+        this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
       }
     });
     
