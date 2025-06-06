@@ -1,0 +1,55 @@
+name: Deploy to Production (SCP)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create deployment archive
+      run: |
+        tar -czf deployment.tar.gz \
+          --exclude='.git' \
+          --exclude='.github' \
+          --exclude='node_modules' \
+          --exclude='.DS_Store' \
+          --exclude='*.log' \
+          --exclude='.env' \
+          --exclude='deployment.tar.gz' \
+          .
+
+    - name: Deploy to production server
+      uses: appleboy/scp-action@v0.1.5
+      with:
+        host: ${{ secrets.DEPLOY_HOST }}
+        username: ${{ secrets.DEPLOY_USER }}
+        key: ${{ secrets.DEPLOY_KEY }}
+        port: ${{ secrets.DEPLOY_PORT || 22 }}
+        source: "deployment.tar.gz"
+        target: "/tmp"
+
+    - name: Extract and move files
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.DEPLOY_HOST }}
+        username: ${{ secrets.DEPLOY_USER }}
+        key: ${{ secrets.DEPLOY_KEY }}
+        port: ${{ secrets.DEPLOY_PORT || 22 }}
+        script: |
+          cd /tmp
+          tar -xzf deployment.tar.gz
+          rsync -av --delete \
+            --exclude 'deployment.tar.gz' \
+            ./ ${{ secrets.DEPLOY_PATH }}/
+          rm deployment.tar.gz
+          # Optional: Set permissions
+          # chmod -R 755 ${{ secrets.DEPLOY_PATH }}
+          # chown -R www-data:www-data ${{ secrets.DEPLOY_PATH }}
