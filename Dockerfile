@@ -8,6 +8,8 @@ RUN apk add --no-cache bash curl
 RUN mkdir -p /usr/share/nginx/html/js/config \
     /usr/share/nginx/html/js/core \
     /usr/share/nginx/html/js/systems \
+    /usr/share/nginx/html/js/managers \
+    /usr/share/nginx/html/js/utils \
     /usr/share/nginx/html/css \
     /usr/share/nginx/html/assets/images \
     /usr/share/nginx/html/assets/audio \
@@ -19,6 +21,8 @@ COPY css/styles.css /usr/share/nginx/html/css/
 COPY js/config/constants.js /usr/share/nginx/html/js/config/
 COPY js/core/*.js /usr/share/nginx/html/js/core/
 COPY js/systems/*.js /usr/share/nginx/html/js/systems/
+COPY js/managers/*.js /usr/share/nginx/html/js/managers/
+COPY js/utils/*.js /usr/share/nginx/html/js/utils/
 COPY assets/images/* /usr/share/nginx/html/assets/images/
 COPY assets/audio/* /usr/share/nginx/html/assets/audio/
 

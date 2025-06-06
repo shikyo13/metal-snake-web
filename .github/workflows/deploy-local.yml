@@ -1,0 +1,32 @@
+name: Deploy to Local Network Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    # Use self-hosted runner on your local network
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to production server
+      env:
+        DEPLOY_HOST: ${{ secrets.LAN_IP }} # e.g., 192.168.1.100
+        DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      run: |
+        # Direct rsync to LAN IP
+        rsync -avz --delete \
+          --exclude '.git' \
+          --exclude '.github' \
+          --exclude 'node_modules' \
+          --exclude '.DS_Store' \
+          --exclude '*.log' \
+          --exclude '.env' \
+          ./ $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/
