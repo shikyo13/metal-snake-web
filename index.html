@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metal Snake</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            min-height: 100vh;
+            overflow: hidden;
+            font-family: 'Press Start 2P', cursive;
+            position: relative;
+        }
+
+        .game-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
+            border-radius: 5px;
+            border: 1px solid #0f0;
+            color: #0f0;
+            font-size: 12px;
+            text-align: center;
+            z-index: 100;
+            pointer-events: none;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+        }
+
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+
+        .loading-text {
+            color: #0f0;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .loading-bar {
+            width: 200px;
+            height: 20px;
+            background: #111;
+            border: 2px solid #0f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loading-progress {
+            width: 0%;
+            height: 100%;
+            background: #0f0;
+            box-shadow: 0 0 10px #0f0;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="instructions">
+            Use Arrow Keys to move | Esc to Pause | M to toggle Music<br>
+            Collect food to grow and power-ups for special abilities
+        </div>
+    </div>
+
+    <div id="loadingScreen">
+        <div class="loading-text">Loading Metal Snake</div>
+        <div class="loading-bar">
+            <div class="loading-progress"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Game } from './js/core/game.js';
+        import { GameState } from './js/config/constants.js';
+		
+		
+
+        const GameManager = {
+            instance: null,
+            initialized: false,
+            
+            async initialize() {
+                if (this.initialized) return;
+                
+                const canvas = document.getElementById('gameCanvas');
+                this.instance = new Game(canvas);
+                window.gameInstance = this.instance;
+                
+                try {
+                    await this.instance.start();
+                    this.initialized = true;
+                    this.hideLoadingScreen();
+                } catch (error) {
+                    console.error('Failed to initialize game:', error);
+                    this.hideLoadingScreen();
+                }
+            },
+            
+            hideLoadingScreen() {
+                const loadingScreen = document.getElementById('loadingScreen');
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 500);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.addEventListener('keydown', (e) => {
+                if ([37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+                    e.preventDefault();
+                }
+            });
+
+            await GameManager.initialize();
+        });
+    </script>
+</body>
+</html>
