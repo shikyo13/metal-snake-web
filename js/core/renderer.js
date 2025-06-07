@@ -46,15 +46,31 @@ export class Renderer {
     this.offscreenBackground.width = width;
     this.offscreenBackground.height = height;
 
-    // Calculate separate cell dimensions for width and height to use full screen
-    this.cellWidth = Math.floor(width / this.config.GRID_COLS);
-    this.cellHeight = Math.floor(availableHeight / this.config.GRID_ROWS);
+    // Calculate target cell size based on screen dimensions
+    // Aim for approximately 40-50 columns on standard screens
+    const baseTargetCells = 45;
+    const targetCellSize = Math.max(
+      Math.floor(width / baseTargetCells),
+      20 // Minimum cell size to prevent things from getting too tiny
+    );
     
-    // For backwards compatibility, keep cellSize as the minimum dimension
-    // This ensures circular objects still look correct
-    this.cellSize = Math.min(this.cellWidth, this.cellHeight);
+    // Calculate how many cells we can fit with square cells
+    this.dynamicCols = Math.floor(width / targetCellSize);
+    this.dynamicRows = Math.floor(availableHeight / targetCellSize);
     
-    // No offset needed - use full screen
+    // Recalculate cell size to perfectly fill the screen
+    this.cellSize = Math.min(
+      width / this.dynamicCols,
+      availableHeight / this.dynamicRows
+    );
+    this.cellWidth = this.cellSize;
+    this.cellHeight = this.cellSize;
+    
+    // Update the config to use dynamic grid dimensions
+    this.config.GRID_COLS = this.dynamicCols;
+    this.config.GRID_ROWS = this.dynamicRows;
+    
+    // No offset needed - we're using the full screen
     this.xOffset = 0;
     this.yOffset = 0;
 
@@ -67,15 +83,12 @@ export class Renderer {
       browserWidth: width,
       browserHeight: height,
       availableHeight,
-      cellWidth: this.cellWidth,
-      cellHeight: this.cellHeight,
-      cellSize: this.cellSize,
-      xOffset: this.xOffset,
-      yOffset: this.yOffset,
-      gameWidth: this.cellWidth * this.config.GRID_COLS,
-      gameHeight: this.cellHeight * this.config.GRID_ROWS,
-      gridCols: this.config.GRID_COLS,
-      gridRows: this.config.GRID_ROWS,
+      targetCellSize,
+      actualCellSize: this.cellSize,
+      dynamicCols: this.dynamicCols,
+      dynamicRows: this.dynamicRows,
+      gameWidth: this.cellSize * this.dynamicCols,
+      gameHeight: this.cellSize * this.dynamicRows,
       isFullscreen: document.fullscreenElement !== null
     });
 
@@ -196,15 +209,18 @@ export class Renderer {
       const isHead = index === 0;
       const pulse = 1 + 0.1 * Math.sin(frameCount * 0.1 + index * 0.2);
       const effectiveSize = snake.shrinkActive ? snake.size * 0.5 : snake.size;
+      
       const baseRadius = (this.cellSize / 2 - 2) * pulse * effectiveSize;
+      const centerX = pos.x + this.cellWidth / 2;
+      const centerY = pos.y + this.cellHeight / 2;
 
       // Create glowing gradient effect
       const gradient = this.ctx.createRadialGradient(
-        pos.x + this.cellSize / 2,
-        pos.y + this.cellSize / 2,
+        centerX,
+        centerY,
         0,
-        pos.x + this.cellSize / 2,
-        pos.y + this.cellSize / 2,
+        centerX,
+        centerY,
         baseRadius * 1.5
       );
 
@@ -223,14 +239,10 @@ export class Renderer {
       this.ctx.shadowColor = snake.invincible ? '#50ffff' : '#50ff50';
       this.ctx.shadowBlur = 15;
       this.ctx.fillStyle = gradient;
+      
+      // Draw snake segment circle
       this.ctx.beginPath();
-      this.ctx.arc(
-        pos.x + this.cellSize / 2,
-        pos.y + this.cellSize / 2,
-        baseRadius,
-        0,
-        Math.PI * 2
-      );
+      this.ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
       this.ctx.fill();
       this.ctx.restore();
 
@@ -247,26 +259,29 @@ export class Renderer {
     let leftEyeX, leftEyeY, rightEyeX, rightEyeY;
 
     // Position eyes based on snake direction
+    const centerX = pos.x + this.cellWidth / 2;
+    const centerY = pos.y + this.cellHeight / 2;
+    
     switch (direction) {
       case Direction.UP:
-        leftEyeX = pos.x + this.cellSize / 2 - eyeOffset;
-        rightEyeX = pos.x + this.cellSize / 2 + eyeOffset;
-        leftEyeY = rightEyeY = pos.y + this.cellSize / 2 - eyeOffset;
+        leftEyeX = centerX - eyeOffset * 0.6;
+        rightEyeX = centerX + eyeOffset * 0.6;
+        leftEyeY = rightEyeY = centerY - eyeOffset;
         break;
       case Direction.DOWN:
-        leftEyeX = pos.x + this.cellSize / 2 - eyeOffset;
-        rightEyeX = pos.x + this.cellSize / 2 + eyeOffset;
-        leftEyeY = rightEyeY = pos.y + this.cellSize / 2 + eyeOffset;
+        leftEyeX = centerX - eyeOffset * 0.6;
+        rightEyeX = centerX + eyeOffset * 0.6;
+        leftEyeY = rightEyeY = centerY + eyeOffset;
         break;
       case Direction.LEFT:
-        leftEyeX = rightEyeX = pos.x + this.cellSize / 2 - eyeOffset;
-        leftEyeY = pos.y + this.cellSize / 2 - eyeOffset;
-        rightEyeY = pos.y + this.cellSize / 2 + eyeOffset;
+        leftEyeX = rightEyeX = centerX - eyeOffset;
+        leftEyeY = centerY - eyeOffset * 0.6;
+        rightEyeY = centerY + eyeOffset * 0.6;
         break;
       case Direction.RIGHT:
-        leftEyeX = rightEyeX = pos.x + this.cellSize / 2 + eyeOffset;
-        leftEyeY = pos.y + this.cellSize / 2 - eyeOffset;
-        rightEyeY = pos.y + this.cellSize / 2 + eyeOffset;
+        leftEyeX = rightEyeX = centerX + eyeOffset;
+        leftEyeY = centerY - eyeOffset * 0.6;
+        rightEyeY = centerY + eyeOffset * 0.6;
         break;
     }
 
@@ -291,22 +306,23 @@ export class Renderer {
 
   drawFood(foodPos, frameCount, attractionRadius = 0) {
     const pos = this.gridToScreen(foodPos.x, foodPos.y);
-    const centerX = pos.x + this.cellSize / 2;
-    const centerY = pos.y + this.cellSize / 2;
+    const centerX = pos.x + this.cellWidth / 2;
+    const centerY = pos.y + this.cellHeight / 2;
     const pulse = 1 + 0.15 * Math.sin(frameCount * 0.1);
     const baseRadius = (this.cellSize / 2 - 2) * pulse;
 
     // Draw magnet attraction field if active
     if (attractionRadius > 0) {
+      const fieldRadius = attractionRadius * this.cellSize;
       const fieldGradient = this.ctx.createRadialGradient(
         centerX, centerY, 0,
-        centerX, centerY, attractionRadius * this.cellSize
+        centerX, centerY, fieldRadius
       );
       fieldGradient.addColorStop(0, 'rgba(255, 255, 0, 0.2)');
       fieldGradient.addColorStop(1, 'transparent');
       this.ctx.fillStyle = fieldGradient;
       this.ctx.beginPath();
-      this.ctx.arc(centerX, centerY, attractionRadius * this.cellSize, 0, Math.PI * 2);
+      this.ctx.arc(centerX, centerY, fieldRadius, 0, Math.PI * 2);
       this.ctx.fill();
     }
 
@@ -337,15 +353,15 @@ export class Renderer {
     }
 
     const pos = this.gridToScreen(powerUp.x, powerUp.y);
-    const centerX = pos.x + this.cellSize / 2;
-    const centerY = pos.y + this.cellSize / 2;
+    const centerX = pos.x + this.cellWidth / 2;
+    const centerY = pos.y + this.cellHeight / 2;
 
     // Add debug rectangle to verify positioning
     if (DEBUG) {
       this.ctx.save();
       this.ctx.strokeStyle = 'red';
       this.ctx.lineWidth = 2;
-      this.ctx.strokeRect(pos.x, pos.y, this.cellSize, this.cellSize);
+      this.ctx.strokeRect(pos.x, pos.y, this.cellWidth, this.cellHeight);
       this.ctx.restore();
     }
 
