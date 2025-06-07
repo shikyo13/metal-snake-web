@@ -41,7 +41,7 @@ export class EffectsSystem {
       radius: 0,
       maxRadius,
       opacity: 1,
-      speed: 3
+      speed: 5  // Increased speed for better visibility
     });
   }
 
@@ -108,9 +108,18 @@ export class EffectsSystem {
       ctx.save();
       ctx.globalAlpha = ripple.opacity;
       ctx.strokeStyle = ripple.color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = ripple.color;
+      ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Add inner ripple for more visibility
+      ctx.globalAlpha = ripple.opacity * 0.5;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(ripple.x, ripple.y, ripple.radius * 0.8, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     });

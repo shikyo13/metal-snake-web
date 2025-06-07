@@ -214,15 +214,17 @@ export class PowerUpManager {
                 
                 // Use particle preset for power-up collection
                 const preset = ParticlePresets.POWERUP_COLLECT;
-                const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
                 
-                // Use particle system's emit method
-                game.particleSystem.emit(
-                    pos.x + game.renderer.cellSize / 2,
-                    pos.y + game.renderer.cellSize / 2,
-                    preset.count,
-                    color
-                );
+                // Emit particles with multiple colors for magical effect
+                const particlesPerColor = Math.floor(preset.count / preset.colors.length);
+                preset.colors.forEach(color => {
+                    game.particleSystem.emit(
+                        pos.x + game.renderer.cellSize / 2,
+                        pos.y + game.renderer.cellSize / 2,
+                        particlesPerColor,
+                        color
+                    );
+                });
                 
                 // Add floating text for power-up name
                 const powerUpNames = {
