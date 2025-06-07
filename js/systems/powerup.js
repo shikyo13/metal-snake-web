@@ -220,8 +220,7 @@ export class PowerUpManager {
                     game.renderer.cellSize * 3
                 );
                 
-                // Add chromatic burst for power-ups
-                game.effectsSystem.chromaticBurst(8, 300);
+                // Remove chromatic burst - it's causing the red flash
                 
                 // Use particle preset for power-up collection
                 const preset = ParticlePresets.POWERUP_COLLECT;
