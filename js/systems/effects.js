@@ -48,13 +48,16 @@ export class EffectsSystem {
 
   // Pulse effect for power-ups - contracts inward
   createPulse(x, y, color = '#ffffff', startRadius = 100) {
-    this.pulses.push({
-      x, y, color,
-      radius: startRadius,
-      targetRadius: 0,
-      opacity: 0.8,
-      speed: 4
-    });
+    // Create multiple pulses for better visibility
+    for (let i = 0; i < 3; i++) {
+      this.pulses.push({
+        x, y, color,
+        radius: startRadius + (i * 20),
+        targetRadius: 0,
+        opacity: 1 - (i * 0.2),
+        speed: 6
+      });
+    }
   }
 
   update() {
@@ -100,8 +103,10 @@ export class EffectsSystem {
     // Update pulses (contract inward)
     this.pulses = this.pulses.filter(pulse => {
       pulse.radius -= pulse.speed;
-      pulse.opacity = pulse.radius / 100;  // Fade as it contracts
-      return pulse.radius > pulse.targetRadius;
+      // Better opacity calculation - stay visible longer
+      const progress = 1 - (pulse.radius / 150);
+      pulse.opacity = Math.max(0, 1 - progress * progress);
+      return pulse.radius > pulse.targetRadius && pulse.opacity > 0;
     });
   }
 
@@ -146,27 +151,21 @@ export class EffectsSystem {
     // Render pulses (power-up collection effect)
     this.pulses.forEach(pulse => {
       ctx.save();
-      ctx.globalAlpha = pulse.opacity;
       
-      // Create gradient for pulse
-      const gradient = ctx.createRadialGradient(
-        pulse.x, pulse.y, 0,
-        pulse.x, pulse.y, pulse.radius
-      );
-      gradient.addColorStop(0, 'transparent');
-      gradient.addColorStop(0.7, 'transparent');
-      gradient.addColorStop(0.8, pulse.color);
-      gradient.addColorStop(1, 'transparent');
+      // Draw solid ring that contracts
+      ctx.globalAlpha = pulse.opacity * 0.8;
+      ctx.strokeStyle = pulse.color;
+      ctx.lineWidth = 4;
+      ctx.shadowColor = pulse.color;
+      ctx.shadowBlur = 20;
       
-      ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(pulse.x, pulse.y, pulse.radius, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.stroke();
       
-      // Add subtle outline
-      ctx.strokeStyle = pulse.color;
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = pulse.opacity * 0.5;
+      // Draw inner glow
+      ctx.globalAlpha = pulse.opacity * 0.3;
+      ctx.lineWidth = 8;
       ctx.stroke();
       
       ctx.restore();
