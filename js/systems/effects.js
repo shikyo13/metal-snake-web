@@ -8,6 +8,7 @@ export class EffectsSystem {
     this.chromatic = 0;
     this.slowMotion = { active: false, factor: 1 };
     this.ripples = [];
+    this.pulses = [];  // For power-up collection effects
   }
 
   // Screen shake for impacts
@@ -42,6 +43,17 @@ export class EffectsSystem {
       maxRadius,
       opacity: 1,
       speed: 5  // Increased speed for better visibility
+    });
+  }
+
+  // Pulse effect for power-ups - contracts inward
+  createPulse(x, y, color = '#ffffff', startRadius = 100) {
+    this.pulses.push({
+      x, y, color,
+      radius: startRadius,
+      targetRadius: 0,
+      opacity: 0.8,
+      speed: 4
     });
   }
 
@@ -84,6 +96,13 @@ export class EffectsSystem {
       ripple.opacity = 1 - (ripple.radius / ripple.maxRadius);
       return ripple.opacity > 0;
     });
+
+    // Update pulses (contract inward)
+    this.pulses = this.pulses.filter(pulse => {
+      pulse.radius -= pulse.speed;
+      pulse.opacity = pulse.radius / 100;  // Fade as it contracts
+      return pulse.radius > pulse.targetRadius;
+    });
   }
 
   applyToCanvas(ctx) {
@@ -121,6 +140,35 @@ export class EffectsSystem {
       ctx.beginPath();
       ctx.arc(ripple.x, ripple.y, ripple.radius * 0.8, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    });
+
+    // Render pulses (power-up collection effect)
+    this.pulses.forEach(pulse => {
+      ctx.save();
+      ctx.globalAlpha = pulse.opacity;
+      
+      // Create gradient for pulse
+      const gradient = ctx.createRadialGradient(
+        pulse.x, pulse.y, 0,
+        pulse.x, pulse.y, pulse.radius
+      );
+      gradient.addColorStop(0, 'transparent');
+      gradient.addColorStop(0.7, 'transparent');
+      gradient.addColorStop(0.8, pulse.color);
+      gradient.addColorStop(1, 'transparent');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(pulse.x, pulse.y, pulse.radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add subtle outline
+      ctx.strokeStyle = pulse.color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = pulse.opacity * 0.5;
+      ctx.stroke();
+      
       ctx.restore();
     });
 

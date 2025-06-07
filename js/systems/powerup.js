@@ -201,11 +201,22 @@ export class PowerUpManager {
                 // Create visual effects
                 const pos = game.renderer.gridToScreen(pu.x, pu.y);
                 
-                // Create ripple effect
-                game.effectsSystem.createRipple(
+                // Get power-up specific color
+                const powerUpColors = {
+                    speed_boost: game.config.COLORS.YELLOW,
+                    invincibility: game.config.COLORS.CYAN,
+                    score_multiplier: game.config.COLORS.MAGENTA,
+                    magnet: game.config.COLORS.GREEN,
+                    shrink: game.config.COLORS.ORANGE,
+                    time_slow: game.config.COLORS.PURPLE
+                };
+                const powerUpColor = powerUpColors[pu.type] || game.config.COLORS.WHITE;
+                
+                // Create pulse effect that contracts inward (like absorption)
+                game.effectsSystem.createPulse(
                     pos.x + game.renderer.cellSize / 2,
                     pos.y + game.renderer.cellSize / 2,
-                    '#ffff00',
+                    powerUpColor,
                     game.renderer.cellSize * 3
                 );
                 
