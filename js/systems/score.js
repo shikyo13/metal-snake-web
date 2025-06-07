@@ -1,3 +1,5 @@
+import { errorManager } from './error.js';
+
 export class ScoreManager {
   constructor(config) {
     this.config = config;
@@ -10,17 +12,33 @@ export class ScoreManager {
   }
 
   loadScores() {
-    const data = localStorage.getItem(this.storageKey);
-    if (data) {
-      try {
-        this.highScores = JSON.parse(data);
-      } catch (error) {
-        console.error('Error loading high scores:', error);
-        this.highScores = { classic: [], obstacles: [] };
-        this.saveScores();
+    try {
+      const data = localStorage.getItem(this.storageKey);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          this.highScores = {
+            classic: parsed.classic || [],
+            obstacles: parsed.obstacles || []
+          };
+        } catch (error) {
+          const result = errorManager.handleError(error, {
+            type: 'storage',
+            strategy: 'storage',
+            operation: 'load_scores',
+            defaultValue: { classic: [], obstacles: [] }
+          }, 'warning');
+          this.highScores = result || { classic: [], obstacles: [] };
+          this.saveScores();
+        }
       }
-    } else {
-      this.saveScores();
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'storage',
+        strategy: 'storage',
+        operation: 'localStorage_access'
+      }, 'warning');
+      this.highScores = { classic: [], obstacles: [] };
     }
   }
 
@@ -28,7 +46,11 @@ export class ScoreManager {
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(this.highScores));
     } catch (error) {
-      console.error('Error saving high scores:', error);
+      errorManager.handleError(error, {
+        type: 'storage',
+        strategy: 'storage',
+        operation: 'save_scores'
+      }, 'warning');
     }
   }
 
@@ -65,7 +87,7 @@ export class ScoreManager {
     if (scores.length < this.config.MAX_SCORES) {
       return true;
     }
-    return score > (scores[scores.length - 1]?.score || 0);
+    return score >= (scores[scores.length - 1]?.score || 0);
   }
 
   clearScores() {
