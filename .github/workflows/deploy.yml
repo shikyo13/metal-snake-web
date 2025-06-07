@@ -1,5 +1,10 @@
 name: Deploy to Production
 
+# WARNING: This workflow requires either:
+# 1. A publicly accessible SSH endpoint (via Cloudflare tunnel)
+# 2. A self-hosted GitHub runner on your local network
+# 3. Using the webhook deployment method instead
+
 on:
   push:
     branches:
