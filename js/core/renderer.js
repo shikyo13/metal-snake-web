@@ -147,7 +147,12 @@ export class Renderer {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  drawAnimatedBackground(frameCount) {
+  drawAnimatedBackground(frameCount, effectsSystem) {
+    // Apply screen shake before drawing
+    if (effectsSystem) {
+      effectsSystem.applyToCanvas(this.ctx);
+    }
+    
     // Draw the cached background
     this.ctx.drawImage(this.offscreenBackground, 0, 0);
     
@@ -192,7 +197,12 @@ export class Renderer {
     }
   }
 
-  drawSnake(snake, frameCount) {
+  drawSnake(snake, frameCount, trail) {
+    // Draw snake trail first
+    if (trail) {
+      trail.render(this.ctx, this.cellSize);
+    }
+    
     snake.body.forEach((segment, index) => {
       const pos = this.gridToScreen(segment.x, segment.y);
       const isHead = index === 0;
@@ -537,7 +547,7 @@ export class Renderer {
 
   drawMenu(game) {
     // Draw animated background with overlay
-    this.drawAnimatedBackground(game.frameCount);
+    this.drawAnimatedBackground(game.frameCount, game.effectsSystem);
     this.drawOverlay(0.5);
 
     // Draw game title
@@ -702,5 +712,11 @@ export class Renderer {
     const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) + amount));
     const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) + amount));
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+  
+  renderEffects(effectsSystem) {
+    if (effectsSystem) {
+      effectsSystem.renderEffects(this.ctx);
+    }
   }
 }

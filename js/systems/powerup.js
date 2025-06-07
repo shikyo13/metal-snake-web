@@ -1,5 +1,6 @@
 // js/systems/powerup.js
 import { PowerUpType, GameState, DEBUG } from '../config/constants.js';
+import { FloatingText, ParticlePresets } from './effects.js';
 
 export class PowerUp {
     constructor(x, y, type, config) {
@@ -189,6 +190,9 @@ export class PowerUpManager {
                 pu.apply(game);
                 game.achievementSystem.recordPowerUpCollection(pu.type);
                 
+                // Update game statistics
+                game.gameStats.powerUpsCollected++;
+                
                 // Award bonus score
                 const baseBonus = 5;
                 const bonus = Math.round(baseBonus * game.scoreMultiplier);
@@ -196,12 +200,53 @@ export class PowerUpManager {
                 
                 // Create visual effects
                 const pos = game.renderer.gridToScreen(pu.x, pu.y);
-                game.particleSystem.emit(
+                
+                // Create ripple effect
+                game.effectsSystem.createRipple(
                     pos.x + game.renderer.cellSize / 2,
                     pos.y + game.renderer.cellSize / 2,
-                    game.config.PARTICLE_COUNT,
-                    "255,255,0"
+                    '#ffff00',
+                    game.renderer.cellSize * 3
                 );
+                
+                // Add chromatic burst for power-ups
+                game.effectsSystem.chromaticBurst(8, 300);
+                
+                // Use particle preset for power-up collection
+                const preset = ParticlePresets.POWERUP_COLLECT;
+                for (let i = 0; i < preset.count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = preset.speed * (0.5 + Math.random() * 0.5);
+                    const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
+                    
+                    game.particleSystem.particles.push({
+                        x: pos.x + game.renderer.cellSize / 2,
+                        y: pos.y + game.renderer.cellSize / 2,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: game.config.PARTICLE_LIFETIME,
+                        color: color,
+                        config: game.config
+                    });
+                }
+                
+                // Add floating text for power-up name
+                const powerUpNames = {
+                    speed_boost: "SPEED UP!",
+                    invincibility: "INVINCIBLE!",
+                    score_multiplier: "2X SCORE!",
+                    magnet: "MAGNET!",
+                    shrink: "SHRINK!",
+                    time_slow: "SLOW TIME!"
+                };
+                
+                game.floatingTexts.push(new FloatingText(
+                    pos.x + game.renderer.cellSize / 2,
+                    pos.y,
+                    powerUpNames[pu.type] || pu.type,
+                    game.config.COLORS.YELLOW,
+                    20
+                ));
                 
                 // Show score notification
                 game.notifications.push({
@@ -209,6 +254,9 @@ export class PowerUpManager {
                     duration: 60,
                     color: game.config.COLORS.YELLOW
                 });
+                
+                // Update progression challenges
+                game.progressionSystem.updateChallenge('collector', game.gameStats.powerUpsCollected);
                 
                 return false;  // Remove collected power-up
             }
