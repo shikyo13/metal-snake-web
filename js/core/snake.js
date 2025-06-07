@@ -8,11 +8,15 @@ export class Snake {
 
   reset() {
     // Initialize snake with starting position and properties
+    // Use dynamic positioning - start at center of the grid
+    const startX = Math.floor(this.config.GRID_COLS / 2);
+    const startY = Math.floor(this.config.GRID_ROWS / 2);
+    
     this.body = [];
     for (let i = 0; i < SNAKE_CONFIG.START_LENGTH; i++) {
       this.body.push({
-        x: SNAKE_CONFIG.START_X - i,
-        y: SNAKE_CONFIG.START_Y
+        x: startX - i,
+        y: startY
       });
     }
     this.direction = Direction.RIGHT;
@@ -20,41 +24,18 @@ export class Snake {
     this.actualDirection = Direction.RIGHT; // Track last actual movement
     this.invincible = false;
     this.size = 1.0;
-    this.moveBuffer = [];
-    this.lastMoveTime = 0;
   }
 
   setDirection(newDir) {
-    // Handle direction changes with input buffering
-    // Check against actualDirection instead of current direction
+    // Instant direction change - only prevent 180-degree turns
+    // Check against actualDirection to prevent self-collision
     if (newDir !== Direction.opposite(this.actualDirection)) {
-      const now = performance.now();
-      if (now - this.lastMoveTime < TIMING.INPUT_BUFFER_DELAY_MS) {
-        // Only buffer if it's a valid direction change
-        if (this.moveBuffer.length === 0 || 
-            newDir !== Direction.opposite(this.moveBuffer[this.moveBuffer.length - 1])) {
-          this.moveBuffer.push(newDir);
-        }
-      } else {
-        this.nextDirection = newDir;
-        this.lastMoveTime = now;
-      }
+      this.nextDirection = newDir;
     }
   }
 
   move(foodPos, obstacles) {
-    // Process buffered moves
-    if (this.moveBuffer.length > 0 && 
-        performance.now() - this.lastMoveTime >= TIMING.INPUT_BUFFER_DELAY_MS) {
-      const bufferedDir = this.moveBuffer.shift();
-      // Double-check the buffered direction is still valid
-      if (bufferedDir !== Direction.opposite(this.actualDirection)) {
-        this.nextDirection = bufferedDir;
-        this.lastMoveTime = performance.now();
-      }
-    }
-
-    // Only update direction if it's valid
+    // Update direction immediately if valid
     if (this.nextDirection !== Direction.opposite(this.actualDirection)) {
       this.direction = this.nextDirection;
       this.actualDirection = this.direction; // Update actual direction
