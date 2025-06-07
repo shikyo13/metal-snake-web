@@ -11,6 +11,8 @@ import { ComboSystem } from '../systems/combo.js';
 import { AchievementSystem } from '../systems/achievement.js';
 import { ScoreManager } from '../systems/score.js';
 import { SoundManager } from '../systems/sound.js';
+import { EffectsSystem, SnakeTrail, FloatingText, ParticlePresets } from '../systems/effects.js';
+import { ProgressionSystem } from '../systems/progression.js';
 
 console.log('Loaded constants:', { GameState, PowerUpType });
 
@@ -31,6 +33,18 @@ export class Game {
     this.notifications = [];
     this.lastSnakeMoveTime = 0;
     this.debugMode = true;  // Enable debugging output
+    
+    // Game statistics tracking
+    this.gameStats = {
+      startTime: 0,
+      powerUpsCollected: 0,
+      maxCombo: 0,
+      foodEaten: 0
+    };
+    
+    // Visual effects
+    this.snakeTrail = null;
+    this.floatingTexts = [];
 
     this.initializeSystems();
     this.initializeGameState();
@@ -68,6 +82,11 @@ export class Game {
     this.achievementSystem = new AchievementSystem(this.config);
     this.scoreManager = new ScoreManager(this.config);
     this.soundManager = new SoundManager(this.assetLoader);
+    
+    // Initialize new systems
+    this.effectsSystem = new EffectsSystem(this.renderer);
+    this.progressionSystem = new ProgressionSystem();
+    this.snakeTrail = new SnakeTrail(20);
     
     // Set up input handlers
     this.setupInputHandlers();
@@ -304,6 +323,22 @@ export class Game {
     this.comboSystem.reset();
     this.notifications = [];
     this.lastSnakeMoveTime = performance.now();
+    
+    // Reset visual effects
+    this.snakeTrail = new SnakeTrail(20);
+    this.floatingTexts = [];
+    
+    // Reset game statistics
+    this.gameStats = {
+      startTime: Date.now(),
+      powerUpsCollected: 0,
+      maxCombo: 0,
+      foodEaten: 0
+    };
+    
+    // Increment games played
+    this.progressionSystem.playerData.gamesPlayed++;
+    this.progressionSystem.savePlayerData();
 }
 
   update() {
@@ -324,6 +359,16 @@ export class Game {
       this.achievementSystem.checkAchievements(this);
       this.powerUpManager.update(this);
       this.particleSystem.update();
+      this.effectsSystem.update();
+      this.snakeTrail.update();
+      
+      // Update floating texts
+      this.floatingTexts = this.floatingTexts.filter(text => text.update());
+      
+      // Update max combo stat
+      if (this.comboSystem.comboCount > this.gameStats.maxCombo) {
+        this.gameStats.maxCombo = this.comboSystem.comboCount;
+      }
       
       // Update notifications
       this.notifications = this.notifications.filter(n => {
@@ -343,6 +388,16 @@ export class Game {
         }
         
         const head = this.snake.headPosition();
+        
+        // Add position to snake trail
+        const screenPos = this.renderer.gridToScreen(head.x, head.y);
+        const trailColor = this.snake.invincible ? '#00ffff' : '#00ff00';
+        this.snakeTrail.addPosition(
+          screenPos.x + this.renderer.cellSize / 2,
+          screenPos.y + this.renderer.cellSize / 2,
+          trailColor
+        );
+        
         if (head.x === this.foodPos.x && head.y === this.foodPos.y) {
           this.handleFoodCollection(head);
         }
@@ -365,6 +420,61 @@ export class Game {
     // Check achievements one final time before game over
     this.achievementSystem.checkAchievements(this);
     
+    // Add screen shake effect
+    this.effectsSystem.shake(15, 500);
+    
+    // Create death explosion particles
+    const head = this.snake.headPosition();
+    const pos = this.renderer.gridToScreen(head.x, head.y);
+    const preset = ParticlePresets.DEATH_EXPLOSION;
+    
+    for (let i = 0; i < preset.count; i++) {
+      const angle = (Math.PI * 2 * i) / preset.count;
+      const speed = preset.speed * (0.5 + Math.random() * 0.5);
+      const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
+      
+      this.particleSystem.particles.push({
+        x: pos.x + this.renderer.cellSize / 2,
+        y: pos.y + this.renderer.cellSize / 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: this.config.PARTICLE_LIFETIME,
+        color: color,
+        config: this.config
+      });
+    }
+    
+    // Calculate game time
+    const gameTime = Math.floor((Date.now() - this.gameStats.startTime) / 1000);
+    
+    // Get progression rewards
+    const rewards = this.progressionSystem.getGameEndRewards(
+      this.score,
+      this.gameStats.maxCombo,
+      gameTime,
+      this.gameStats.powerUpsCollected
+    );
+    
+    // Apply rewards
+    this.progressionSystem.addCoins(rewards.coins);
+    this.progressionSystem.addXP(rewards.xp);
+    
+    // Store rewards for display
+    this.gameEndRewards = rewards;
+    
+    // Update player statistics
+    this.progressionSystem.playerData.totalScore += this.score;
+    if (this.score > this.progressionSystem.playerData.bestScore) {
+      this.progressionSystem.playerData.bestScore = this.score;
+    }
+    if (this.gameStats.maxCombo > this.progressionSystem.playerData.bestCombo) {
+      this.progressionSystem.playerData.bestCombo = this.gameStats.maxCombo;
+    }
+    this.progressionSystem.playerData.statistics.foodEaten += this.gameStats.foodEaten;
+    this.progressionSystem.playerData.statistics.powerUpsCollected += this.gameStats.powerUpsCollected;
+    this.progressionSystem.playerData.totalPlayTime += gameTime;
+    this.progressionSystem.savePlayerData();
+    
     this.soundManager.playGameOverSound();
 }
 
@@ -377,6 +487,9 @@ export class Game {
     this.score += totalScore;
     this.foodPos = this.getRandomPosition();
     
+    // Update game stats
+    this.gameStats.foodEaten++;
+    
     // Play sound effects
     this.soundManager.playFoodPickupSound();
     if (comboMultiplier > 1) {
@@ -385,12 +498,41 @@ export class Game {
     
     // Create visual effects
     const pos = this.renderer.gridToScreen(head.x, head.y);
-    this.particleSystem.emit(
+    
+    // Create ripple effect
+    this.effectsSystem.createRipple(
       pos.x + this.renderer.cellSize / 2,
       pos.y + this.renderer.cellSize / 2,
-      this.config.PARTICLE_COUNT,
-      "255,0,0"
+      '#ff0000',
+      this.renderer.cellSize * 2
     );
+    
+    // Use particle preset for food collection
+    const preset = comboMultiplier > 1 ? ParticlePresets.COMBO_BURST : ParticlePresets.FOOD_COLLECT;
+    for (let i = 0; i < preset.count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = preset.speed * (0.5 + Math.random() * 0.5);
+      const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
+      
+      this.particleSystem.particles.push({
+        x: pos.x + this.renderer.cellSize / 2,
+        y: pos.y + this.renderer.cellSize / 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: this.config.PARTICLE_LIFETIME,
+        color: color,
+        config: this.config
+      });
+    }
+    
+    // Add floating score text
+    this.floatingTexts.push(new FloatingText(
+      pos.x + this.renderer.cellSize / 2,
+      pos.y + this.renderer.cellSize / 2,
+      `+${totalScore}`,
+      comboMultiplier > 1 ? this.config.COLORS.GOLD : this.config.COLORS.YELLOW,
+      comboMultiplier > 1 ? 28 : 24
+    ));
     
     // Add score notification
     this.notifications.push({
@@ -398,6 +540,11 @@ export class Game {
       duration: 60,
       color: this.config.COLORS.YELLOW
     });
+    
+    // Update daily challenges
+    if (this.gameStats.foodEaten >= 50) {
+      this.progressionSystem.updateChallenge('collector', this.gameStats.foodEaten);
+    }
   }
 
   attractFood() {
@@ -444,6 +591,8 @@ export class Game {
         break;
       case GameState.PLAY:
         this.renderGameplay();
+        // Render floating texts on top of gameplay
+        this.floatingTexts.forEach(text => text.render(this.renderer.ctx));
         break;
       case GameState.PAUSE:
         this.renderGameplay();
@@ -464,7 +613,7 @@ export class Game {
 
   renderGameplay() {
     // Draw animated background and overlay
-    this.renderer.drawAnimatedBackground(this.frameCount);
+    this.renderer.drawAnimatedBackground(this.frameCount, this.effectsSystem);
     this.renderer.drawOverlay(0.2);
 
     // Draw food with magnet effect if active
@@ -485,10 +634,13 @@ export class Game {
     }
     
     // Draw snake, particles, UI elements
-    this.renderer.drawSnake(this.snake, this.frameCount);
+    this.renderer.drawSnake(this.snake, this.frameCount, this.snakeTrail);
     this.renderer.drawParticles(this.particleSystem.particles);
     this.renderer.drawUI(this);
     this.renderer.drawActivePowerupsStatus(this.powerUpManager.activePowerUps, this.config.FPS);
+    
+    // Render effects on top
+    this.renderer.renderEffects(this.effectsSystem);
   }
 
   renderGameOver() {
@@ -510,7 +662,7 @@ export class Game {
 
   renderHighScores() {
     // Draw background and overlay
-    this.renderer.drawAnimatedBackground(this.frameCount);
+    this.renderer.drawAnimatedBackground(this.frameCount, this.effectsSystem);
     this.renderer.drawOverlay(0.5);
     
     // Draw title
@@ -542,7 +694,7 @@ export class Game {
 
   renderSettings() {
     // Draw background and overlay
-    this.renderer.drawAnimatedBackground(this.frameCount);
+    this.renderer.drawAnimatedBackground(this.frameCount, this.effectsSystem);
     this.renderer.drawOverlay(0.5);
     
     // Draw title

@@ -24,6 +24,8 @@ export class Snake {
     this.actualDirection = Direction.RIGHT; // Track last actual movement
     this.invincible = false;
     this.size = 1.0;
+    this.shrinkActive = false;
+    this.positionHistory = []; // Track position history for trail effects
   }
 
   setDirection(newDir) {
