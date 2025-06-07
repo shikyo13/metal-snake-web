@@ -106,6 +106,25 @@
             transition: width 0.3s;
         }
     </style>
+    
+    <!-- Sentry Error Tracking (Production Only) -->
+    <script>
+        // Only load Sentry in production (when not on localhost)
+        if (!window.location.hostname.includes('localhost') && 
+            !window.location.hostname.includes('127.0.0.1') &&
+            !window.location.hostname.includes('0.0.0.0')) {
+            const script = document.createElement('script');
+            script.src = 'https://browser.sentry-cdn.com/7.109.0/bundle.min.js';
+            script.crossOrigin = 'anonymous';
+            script.onload = function() {
+                // Initialize Sentry after it loads
+                if (window.Sentry) {
+                    window.SENTRY_DSN = 'YOUR_SENTRY_DSN_HERE'; // Replace with actual DSN
+                }
+            };
+            document.head.appendChild(script);
+        }
+    </script>
 </head>
 <body>
     <div class="game-container">
@@ -126,6 +145,7 @@
     <script type="module">
         import { Game } from './js/core/game.js';
         import { GameState } from './js/config/constants.js';
+        import { errorManager } from './js/systems/error.js';
 		
 		
 
@@ -141,11 +161,17 @@
                 window.gameInstance = this.instance;
                 
                 try {
+                    // Initialize Sentry if available
+                    if (window.SENTRY_DSN) {
+                        errorManager.initSentry(window.SENTRY_DSN);
+                    }
+                    
                     await this.instance.start();
                     this.initialized = true;
                     this.hideLoadingScreen();
                 } catch (error) {
                     console.error('Failed to initialize game:', error);
+                    errorManager.showNotification('Failed to initialize game', 'critical');
                     this.hideLoadingScreen();
                 }
             },

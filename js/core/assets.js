@@ -1,4 +1,6 @@
 // Asset loader class for managing game resources
+import { errorManager } from '../systems/error.js';
+
 export class AssetLoader {
   constructor() {
     this.images = {};
@@ -14,7 +16,8 @@ export class AssetLoader {
         resolve(img);
       };
       img.onerror = (err) => {
-        console.warn(`Failed to load image ${name} from ${src}:`, err);
+        const error = new Error(`Failed to load image: ${name}`);
+        errorManager.handleAssetError('image', name, error);
         this.loadErrors.push({ type: 'image', name, src, error: err });
         resolve(null); // Resolve to allow game to continue
       };
@@ -32,7 +35,8 @@ export class AssetLoader {
       }, { once: true });
       
       audio.onerror = (err) => {
-        console.warn(`Failed to load audio ${name} from ${src}:`, err);
+        const error = new Error(`Failed to load audio: ${name}`);
+        errorManager.handleAssetError('audio', name, error);
         this.loadErrors.push({ type: 'audio', name, src, error: err });
         resolve(null); // Resolve to allow game to continue
       };
@@ -44,7 +48,8 @@ export class AssetLoader {
       // Add timeout for slow connections
       setTimeout(() => {
         if (!this.sounds[name]) {
-          console.warn(`Audio load timeout for ${name}`);
+          const error = new Error(`Audio load timeout: ${name}`);
+          errorManager.handleAssetError('audio', name, error);
           this.loadErrors.push({ type: 'audio', name, src, error: 'timeout' });
           resolve(null);
         }

@@ -1,53 +1,99 @@
 // js/core/renderer.js
 import { Direction, PowerUpType, DEBUG } from '../config/constants.js';
+import { errorManager } from '../systems/error.js';
+import { MathUtils } from '../utils/math.js';
 
 export class Renderer {
   constructor(canvas, config, assetLoader) {
+    if (!canvas) {
+      throw new Error('Canvas element is required for Renderer');
+    }
+    
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
+    
+    if (!this.ctx) {
+      const error = new Error('Failed to create 2D rendering context');
+      errorManager.handleError(error, {
+        type: 'canvas_context',
+        strategy: 'canvas_context'
+      }, 'critical');
+      throw error;
+    }
+    
     this.config = config;
     this.assetLoader = assetLoader;
     this.cellSize = config.BASE_CELL_SIZE;
     this.xOffset = 0;
     this.yOffset = 0;
 
-    // Create auxiliary canvases for performance optimization
-    this.bgCanvas = document.createElement('canvas');
-    this.bgCtx = this.bgCanvas.getContext('2d');
+    try {
+      // Create auxiliary canvases for performance optimization
+      this.bgCanvas = document.createElement('canvas');
+      this.bgCtx = this.bgCanvas.getContext('2d');
 
-    this.noiseCanvas = document.createElement('canvas');
-    this.noiseCtx = this.noiseCanvas.getContext('2d');
+      this.noiseCanvas = document.createElement('canvas');
+      this.noiseCtx = this.noiseCanvas.getContext('2d');
 
-    this.offscreenBackground = document.createElement('canvas');
-    this.offscreenBackgroundCtx = this.offscreenBackground.getContext('2d');
+      this.offscreenBackground = document.createElement('canvas');
+      this.offscreenBackgroundCtx = this.offscreenBackground.getContext('2d');
+      
+      // Add context loss handling
+      this.setupContextLossHandling();
 
-    // Initialize visual effects
-    this.createGradients();
-    this.generateNoiseTexture();
+      // Initialize visual effects
+      this.createGradients();
+      this.generateNoiseTexture();
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'renderer_initialization',
+        phase: 'auxiliary_canvases'
+      }, 'warning');
+    }
 
     if (DEBUG) console.log('Renderer initialized with config:', config);
   }
 
-  resize(width, height) {
-    // Reserve space for the instruction box at bottom (approximately 50px with new compact style)
-    const instructionHeight = 50;
-    const availableHeight = height - instructionHeight;
+  setupContextLossHandling() {
+    this.canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      errorManager.handleError(new Error('WebGL context lost'), {
+        type: 'context_loss'
+      }, 'critical');
+    });
     
-    // Resize all canvases
-    this.canvas.width = width;
-    this.canvas.height = height;
-    this.bgCanvas.width = width;
-    this.bgCanvas.height = height;
-    this.noiseCanvas.width = width;
-    this.noiseCanvas.height = height;
-    this.offscreenBackground.width = width;
-    this.offscreenBackground.height = height;
+    this.canvas.addEventListener('webglcontextrestored', () => {
+      this.createGradients();
+      this.generateNoiseTexture();
+      errorManager.showNotification('Graphics context restored', 'info');
+    });
+  }
+  
+  resize(width, height) {
+    try {
+      // Validate dimensions
+      width = MathUtils.clamp(width, 100, 10000);
+      height = MathUtils.clamp(height, 100, 10000);
+      
+      // Reserve space for the instruction box at bottom (approximately 50px with new compact style)
+      const instructionHeight = 50;
+      const availableHeight = height - instructionHeight;
+      
+      // Resize all canvases
+      this.canvas.width = width;
+      this.canvas.height = height;
+      this.bgCanvas.width = width;
+      this.bgCanvas.height = height;
+      this.noiseCanvas.width = width;
+      this.noiseCanvas.height = height;
+      this.offscreenBackground.width = width;
+      this.offscreenBackground.height = height;
 
-    // Calculate target cell size based on screen dimensions
-    // Aim for approximately 40-50 columns on standard screens
-    const baseTargetCells = 45;
-    const targetCellSize = Math.max(
-      Math.floor(width / baseTargetCells),
+      // Calculate target cell size based on screen dimensions
+      // Aim for approximately 40-50 columns on standard screens
+      const baseTargetCells = 45;
+      const targetCellSize = Math.max(
+        Math.floor(width / baseTargetCells),
       20 // Minimum cell size to prevent things from getting too tiny
     );
     
@@ -71,32 +117,31 @@ export class Renderer {
     this.xOffset = 0;
     this.yOffset = 0;
 
-    this.createGradients();
-    this.generateNoiseTexture();
-    this.updateOffscreenBackground();
+      this.createGradients();
+      this.generateNoiseTexture();
+      this.updateOffscreenBackground();
 
-    // Always log resize info for debugging
-    console.log('Resize calculations:', {
-      browserWidth: width,
-      browserHeight: height,
-      availableHeight,
-      targetCellSize,
-      actualCellSize: this.cellSize,
-      dynamicCols: this.dynamicCols,
-      dynamicRows: this.dynamicRows,
-      gameWidth: this.cellSize * this.dynamicCols,
-      gameHeight: this.cellSize * this.dynamicRows,
-      isFullscreen: document.fullscreenElement !== null
-    });
-
-    if (DEBUG) {
-      console.log('Renderer resized:', {
+      // Always log resize info for debugging
+      if (DEBUG) {
+        console.log('Resize calculations:', {
+          browserWidth: width,
+          browserHeight: height,
+          availableHeight,
+          targetCellSize,
+          actualCellSize: this.cellSize,
+          dynamicCols: this.dynamicCols,
+          dynamicRows: this.dynamicRows,
+          gameWidth: this.cellSize * this.dynamicCols,
+          gameHeight: this.cellSize * this.dynamicRows,
+          isFullscreen: document.fullscreenElement !== null
+        });
+      }
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'resize',
         width,
-        height,
-        cellSize: this.cellSize,
-        xOffset: this.xOffset,
-        yOffset: this.yOffset
-      });
+        height
+      }, 'warning');
     }
   }
 

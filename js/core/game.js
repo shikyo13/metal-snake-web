@@ -13,11 +13,18 @@ import { ScoreManager } from '../systems/score.js';
 import { SoundManager } from '../systems/sound.js';
 import { EffectsSystem, SnakeTrail, FloatingText, ParticlePresets } from '../systems/effects.js';
 import { ProgressionSystem } from '../systems/progression.js';
+import { errorManager } from '../systems/error.js';
+import { MathUtils } from '../utils/math.js';
+import { performanceMonitor } from '../systems/performance.js';
 
 console.log('Loaded constants:', { GameState, PowerUpType });
 
 export class Game {
   constructor(canvas) {
+    if (!canvas) {
+      throw new Error('Canvas element is required for game initialization');
+    }
+    
     // Create a deep copy of config to prevent modifications to the original
     this.config = JSON.parse(JSON.stringify(CONFIG));
     this.canvas = canvas;
@@ -32,7 +39,9 @@ export class Game {
     this.tempMode = "classic";
     this.notifications = [];
     this.lastSnakeMoveTime = 0;
-    this.debugMode = true;  // Enable debugging output
+    this.debugMode = CONFIG.DEBUG;
+    this.errorCount = 0;
+    this.criticalError = false;
     
     // Game statistics tracking
     this.gameStats = {
@@ -46,10 +55,26 @@ export class Game {
     this.snakeTrail = null;
     this.floatingTexts = [];
 
-    this.initializeSystems();
-    this.initializeGameState();
-    this.bindEvents();
-    this.resize();
+    try {
+      this.initializeSystems();
+      this.initializeGameState();
+      this.bindEvents();
+      this.resize();
+      
+      // Make game instance available globally for error tracking
+      window.gameInstance = this;
+      
+      // Create performance debug overlay if in debug mode
+      if (CONFIG.DEBUG) {
+        performanceMonitor.createDebugOverlay();
+      }
+    } catch (error) {
+      errorManager.handleError(error, { 
+        type: 'initialization',
+        phase: 'constructor' 
+      }, 'critical');
+      throw error;
+    }
   }
   
   get state() {
@@ -64,32 +89,52 @@ export class Game {
   }
 
   initializeSystems() {
-    // Create asset loader for images and sounds
-    this.assetLoader = new AssetLoader();
-    
-    // Initialize collision system
-    this.collisionSystem = new CollisionSystem(this.config);
-    
-    // Initialize input manager
-    this.inputManager = new InputManager();
-    
-    // Initialize core game systems in the correct order
-    this.renderer = new Renderer(this.canvas, this.config, this.assetLoader);
-    this.snake = new Snake(this.config);
-    this.particleSystem = new ParticleSystem(this.config);
-    this.powerUpManager = new PowerUpManager(this.config);
-    this.comboSystem = new ComboSystem(this.config);
-    this.achievementSystem = new AchievementSystem(this.config);
-    this.scoreManager = new ScoreManager(this.config);
-    this.soundManager = new SoundManager(this.assetLoader);
-    
-    // Initialize new systems
-    this.effectsSystem = new EffectsSystem(this.renderer);
-    this.progressionSystem = new ProgressionSystem();
-    this.snakeTrail = new SnakeTrail(20);
-    
-    // Set up input handlers
-    this.setupInputHandlers();
+    try {
+      // Create asset loader for images and sounds
+      this.assetLoader = new AssetLoader();
+      if (!this.assetLoader) throw new Error('Failed to create AssetLoader');
+      
+      // Initialize collision system
+      this.collisionSystem = new CollisionSystem(this.config);
+      if (!this.collisionSystem) throw new Error('Failed to create CollisionSystem');
+      
+      // Initialize input manager
+      this.inputManager = new InputManager();
+      if (!this.inputManager) throw new Error('Failed to create InputManager');
+      
+      // Initialize core game systems in the correct order
+      this.renderer = new Renderer(this.canvas, this.config, this.assetLoader);
+      if (!this.renderer || !this.renderer.ctx) {
+        throw new Error('Failed to create Renderer or get canvas context');
+      }
+      
+      this.snake = new Snake(this.config);
+      this.particleSystem = new ParticleSystem(this.config);
+      this.powerUpManager = new PowerUpManager(this.config);
+      this.comboSystem = new ComboSystem(this.config);
+      this.achievementSystem = new AchievementSystem(this.config);
+      this.scoreManager = new ScoreManager(this.config);
+      this.soundManager = new SoundManager(this.assetLoader);
+      
+      // Initialize new systems
+      this.effectsSystem = new EffectsSystem(this.renderer);
+      this.progressionSystem = new ProgressionSystem();
+      this.snakeTrail = new SnakeTrail(20);
+      
+      // Set up input handlers
+      this.setupInputHandlers();
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'system_initialization',
+        phase: 'initializeSystems'
+      }, 'critical');
+      errorManager.createErrorModal(
+        'Initialization Failed',
+        'Failed to initialize game systems. Please refresh the page.',
+        error.message
+      );
+      throw error;
+    }
   }
 
   initializeGameState() {
@@ -112,33 +157,39 @@ export class Game {
   }
 
   setupInputHandlers() {
+    // Wrap all input handlers with error boundaries
+    const safeHandler = (fn) => errorManager.createErrorBoundary(fn, {
+      type: 'input',
+      strategy: 'input'
+    });
+    
     // Movement controls (only active during gameplay)
-    this.inputManager.on('move_up', () => {
+    this.inputManager.on('move_up', safeHandler(() => {
       if (this.state === GameState.PLAY) {
         this.snake.setDirection(Direction.UP);
       }
     });
     
-    this.inputManager.on('move_down', () => {
+    this.inputManager.on('move_down', safeHandler(() => {
       if (this.state === GameState.PLAY) {
         this.snake.setDirection(Direction.DOWN);
       }
     });
     
-    this.inputManager.on('move_left', () => {
+    this.inputManager.on('move_left', safeHandler(() => {
       if (this.state === GameState.PLAY) {
         this.snake.setDirection(Direction.LEFT);
       }
     });
     
-    this.inputManager.on('move_right', () => {
+    this.inputManager.on('move_right', safeHandler(() => {
       if (this.state === GameState.PLAY) {
         this.snake.setDirection(Direction.RIGHT);
       }
-    });
+    }));
     
     // Game controls
-    this.inputManager.on('pause', () => {
+    this.inputManager.on('pause', safeHandler(() => {
       if (this.state === GameState.PLAY) {
         this.state = GameState.PAUSE;
         this.soundManager.playSound('pause', SOUND_PRESETS.PAUSE);
@@ -146,23 +197,23 @@ export class Game {
         this.state = GameState.PLAY;
         this.soundManager.playSound('unpause', SOUND_PRESETS.SELECT);
       }
-    });
+    }));
     
-    this.inputManager.on('toggle_music', () => {
+    this.inputManager.on('toggle_music', safeHandler(() => {
       this.soundManager.toggleMusic();
-    });
+    }));
     
     // Menu controls
-    this.inputManager.on('play', () => {
+    this.inputManager.on('play', safeHandler(() => {
       if (this.state === GameState.MENU) {
         this.state = GameState.PLAY;
         this.resetGame();
         this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
         this.enterFullscreen();
       }
-    });
+    }));
     
-    this.inputManager.on('select', () => {
+    this.inputManager.on('select', safeHandler(() => {
       if (this.state === GameState.MENU) {
         this.state = GameState.PLAY;
         this.resetGame();
@@ -171,51 +222,51 @@ export class Game {
         this.state = GameState.MENU;
         this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
       }
-    });
+    }));
     
-    this.inputManager.on('highscores', () => {
+    this.inputManager.on('highscores', safeHandler(() => {
       if (this.state === GameState.MENU) {
         this.state = GameState.HIGHSCORES;
         this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
       }
-    });
+    }));
     
-    this.inputManager.on('toggle_obstacles', () => {
+    this.inputManager.on('toggle_obstacles', safeHandler(() => {
       if (this.state === GameState.MENU) {
         this.obstaclesEnabled = !this.obstaclesEnabled;
         const soundPreset = this.obstaclesEnabled ? SOUND_PRESETS.TOGGLE_ON : SOUND_PRESETS.TOGGLE_OFF;
         this.soundManager.playSound('toggle', soundPreset);
       }
-    });
+    }));
     
-    this.inputManager.on('settings', () => {
+    this.inputManager.on('settings', safeHandler(() => {
       if (this.state === GameState.MENU) {
         this.state = GameState.SETTINGS;
         this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
       }
-    });
+    }));
     
-    this.inputManager.on('back', () => {
+    this.inputManager.on('back', safeHandler(() => {
       if (this.state === GameState.HIGHSCORES || this.state === GameState.SETTINGS) {
         this.state = GameState.MENU;
         this.soundManager.playSound('back', SOUND_PRESETS.BACK);
       }
-    });
+    }));
     
     // Settings controls
-    this.inputManager.on('volume_up', () => {
+    this.inputManager.on('volume_up', safeHandler(() => {
       if (this.state === GameState.SETTINGS) {
         this.soundManager.adjustVolume(0.1);
         this.soundManager.playSound('volume', SOUND_PRESETS.SELECT);
       }
-    });
+    }));
     
-    this.inputManager.on('volume_down', () => {
+    this.inputManager.on('volume_down', safeHandler(() => {
       if (this.state === GameState.SETTINGS) {
         this.soundManager.adjustVolume(-0.1);
         this.soundManager.playSound('volume', SOUND_PRESETS.SELECT);
       }
-    });
+    }));
   }
 
   bindEvents() {
@@ -244,9 +295,20 @@ export class Game {
   }
 
   resize() {
-    this.renderer.resize(window.innerWidth, window.innerHeight);
-    if (this.renderer.updateOffscreenBackground) {
-      this.renderer.updateOffscreenBackground();
+    try {
+      const width = MathUtils.clamp(window.innerWidth, 100, 10000);
+      const height = MathUtils.clamp(window.innerHeight, 100, 10000);
+      
+      this.renderer.resize(width, height);
+      if (this.renderer.updateOffscreenBackground) {
+        this.renderer.updateOffscreenBackground();
+      }
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'resize',
+        width: window.innerWidth,
+        height: window.innerHeight
+      }, 'warning');
     }
   }
   
@@ -281,17 +343,27 @@ export class Game {
 
   // Handle game over name input separately since it needs special handling
   handleGameOverInput(e) {
-    if (e.key === 'Enter') {
-      const finalName = this.playerName.trim() || "Player";
-      this.scoreManager.addScore(finalName, this.tempScore, this.tempMode);
-      this.playerName = "";
-      this.state = GameState.HIGHSCORES;
-      this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
-    } else if (e.key === 'Backspace') {
-      this.playerName = this.playerName.slice(0, -1);
-    } else if (e.key.length === 1 && this.playerName.length < 15) {
-      this.playerName += e.key;
-      this.soundManager.playSound('type', SOUND_PRESETS.COLLECT);
+    try {
+      if (!e || !e.key) return;
+      
+      if (e.key === 'Enter') {
+        const finalName = this.playerName.trim() || "Player";
+        this.scoreManager.addScore(finalName, this.tempScore, this.tempMode);
+        this.playerName = "";
+        this.state = GameState.HIGHSCORES;
+        this.soundManager.playSound('select', SOUND_PRESETS.SELECT);
+      } else if (e.key === 'Backspace') {
+        this.playerName = this.playerName.slice(0, -1);
+      } else if (e.key.length === 1 && this.playerName.length < 15) {
+        this.playerName += e.key;
+        this.soundManager.playSound('type', SOUND_PRESETS.COLLECT);
+      }
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'input',
+        strategy: 'input',
+        context: 'game_over_input'
+      }, 'warning');
     }
   }
 
@@ -342,18 +414,20 @@ export class Game {
 }
 
   update() {
-    // Add debug logging
-    if (this.debugMode && this.frameCount % 60 === 0) {
-      console.log('Game status:', {
-        state: this.state,
-        powerUps: this.powerUpManager.powerUps.length,
-        spawnTimer: this.powerUpManager.spawnTimer,
-        score: this.score
-      });
-    }
+    try {
+      // Add debug logging
+      if (this.debugMode && this.frameCount % 60 === 0) {
+        console.log('Game status:', {
+          state: this.state,
+          powerUps: this.powerUpManager.powerUps.length,
+          spawnTimer: this.powerUpManager.spawnTimer,
+          score: this.score,
+          errors: errorManager.getErrorStats()
+        });
+      }
 
-    const now = performance.now();
-    if (this.state === GameState.PLAY) {
+      const now = performance.now();
+      if (this.state === GameState.PLAY) {
       // Update game systems
       this.comboSystem.update();
       this.achievementSystem.checkAchievements(this);
@@ -410,6 +484,25 @@ export class Game {
     }
     
     this.frameCount++;
+    } catch (error) {
+      this.handleGameLoopError(error);
+    }
+  }
+  
+  handleGameLoopError(error) {
+    this.errorCount++;
+    
+    const result = errorManager.handleError(error, {
+      type: 'game_loop',
+      strategy: 'game_loop',
+      errorCount: this.errorCount,
+      gameState: this.state
+    }, 'critical');
+    
+    if (result && result.stop) {
+      this.criticalError = true;
+      this.state = GameState.GAME_OVER;
+    }
   }
 
   handleGameOver() {
@@ -552,10 +645,10 @@ export class Game {
       moveY = dy > 0 ? 1 : -1;
     }
     
-    // Calculate new position
+    // Calculate new position with safety checks
     const newPos = {
-      x: this.foodPos.x + moveX,
-      y: this.foodPos.y + moveY
+      x: MathUtils.clamp(this.foodPos.x + moveX, 0, this.config.GRID_COLS - 1),
+      y: MathUtils.clamp(this.foodPos.y + moveY, 0, this.config.GRID_ROWS - 1)
     };
 
     // Check for collisions with snake body and power-ups
@@ -571,11 +664,12 @@ export class Game {
   }
 
   render() {
-    // Clear the canvas before each render
-    this.renderer.clear();
+    try {
+      // Clear the canvas before each render
+      this.renderer.clear();
 
-    // Render appropriate screen based on game state
-    switch (this.state) {
+      // Render appropriate screen based on game state
+      switch (this.state) {
       case GameState.MENU:
         this.renderer.drawMenu(this);
         break;
@@ -598,6 +692,39 @@ export class Game {
       case GameState.SETTINGS:
         this.renderSettings();
         break;
+    }
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'render',
+        gameState: this.state
+      }, 'critical');
+      // Try to show basic error screen
+      this.renderErrorScreen(error);
+    }
+  }
+  
+  renderErrorScreen(error) {
+    try {
+      this.renderer.clear();
+      this.renderer.drawOverlay(0.9);
+      this.renderer.drawText(
+        "RENDERING ERROR",
+        this.canvas.width / 2,
+        this.canvas.height / 2 - 40,
+        32,
+        '#ff0000',
+        true
+      );
+      this.renderer.drawText(
+        "Please refresh the page",
+        this.canvas.width / 2,
+        this.canvas.height / 2,
+        24,
+        '#ffffff',
+        true
+      );
+    } catch (e) {
+      console.error('Failed to render error screen:', e);
     }
   }
 
@@ -761,9 +888,27 @@ export class Game {
   }
 
   gameLoop() {
-    this.update();
-    this.render();
-    requestAnimationFrame(() => this.gameLoop());
+    // Record frame timing
+    performanceMonitor.recordFrameTime();
+    
+    try {
+      const updateStart = performance.now();
+      this.update();
+      const updateEnd = performance.now();
+      performanceMonitor.recordUpdateTime(updateEnd - updateStart);
+      
+      const renderStart = performance.now();
+      this.render();
+      const renderEnd = performance.now();
+      performanceMonitor.recordRenderTime(renderEnd - renderStart);
+    } catch (error) {
+      console.error('Critical game loop error:', error);
+      this.handleGameLoopError(error);
+    }
+    
+    if (!this.criticalError) {
+      requestAnimationFrame(() => this.gameLoop());
+    }
   }
 }
 

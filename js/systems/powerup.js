@@ -1,6 +1,8 @@
 // js/systems/powerup.js
 import { PowerUpType, GameState, DEBUG } from '../config/constants.js';
 import { FloatingText, ParticlePresets } from './effects.js';
+import { errorManager } from './error.js';
+import { MathUtils } from '../utils/math.js';
 
 export class PowerUp {
     constructor(x, y, type, config) {
@@ -22,13 +24,14 @@ export class PowerUp {
     }
 
     apply(game) {
-        this.collected = true;
-        if (DEBUG) {
-            console.log(`Applying power-up: ${this.type}`);
-        }
+        try {
+            this.collected = true;
+            if (DEBUG) {
+                console.log(`Applying power-up: ${this.type}`);
+            }
 
-        // Apply the power-up effect
-        switch (this.type) {
+            // Apply the power-up effect
+            switch (this.type) {
             case PowerUpType.SPEED_BOOST:
                 game.config.GAME_SPEED += 3;
                 break;
@@ -48,8 +51,17 @@ export class PowerUp {
                 game.config.GAME_SPEED *= 0.25;
                 break;
             default:
-                console.warn("Unhandled power-up type:", this.type);
-                return;
+                throw new Error(`Unknown power-up type: ${this.type}`);
+        }
+        } catch (error) {
+            errorManager.handleError(error, {
+                type: 'powerup',
+                strategy: 'powerup',
+                powerUpType: this.type,
+                position: { x: this.x, y: this.y },
+                defaultValue: null
+            }, 'warning');
+            return;
         }
 
         // Set duration and play sound effect
@@ -60,11 +72,12 @@ export class PowerUp {
     }
 
     expire(game) {
-        if (DEBUG) {
-            console.log(`Power-up expired: ${this.type}`);
-        }
+        try {
+            if (DEBUG) {
+                console.log(`Power-up expired: ${this.type}`);
+            }
 
-        // Remove power-up effect
+            // Remove power-up effect
         switch (this.type) {
             case PowerUpType.SPEED_BOOST:
                 game.config.GAME_SPEED = Math.max(
@@ -89,6 +102,14 @@ export class PowerUp {
                 break;
         }
         delete game.powerUpManager.activePowerUps[this.type];
+        } catch (error) {
+            errorManager.handleError(error, {
+                type: 'powerup',
+                strategy: 'powerup',
+                operation: 'expire',
+                powerUpType: this.type
+            }, 'warning');
+        }
     }
 }
 
