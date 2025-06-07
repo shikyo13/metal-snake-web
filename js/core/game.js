@@ -428,16 +428,15 @@ export class Game {
     const pos = this.renderer.gridToScreen(head.x, head.y);
     const preset = ParticlePresets.DEATH_EXPLOSION;
     
-    // Use the preset colors by picking one randomly
-    const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
-    
-    // Use particle system's emit method
-    this.particleSystem.emit(
-      pos.x + this.renderer.cellSize / 2,
-      pos.y + this.renderer.cellSize / 2,
-      preset.count,
-      color
-    );
+    // Emit multiple bursts with different colors for dramatic effect
+    preset.colors.forEach(color => {
+      this.particleSystem.emit(
+        pos.x + this.renderer.cellSize / 2,
+        pos.y + this.renderer.cellSize / 2,
+        Math.floor(preset.count / preset.colors.length),
+        color
+      );
+    });
     
     // Calculate game time
     const gameTime = Math.floor((Date.now() - this.gameStats.startTime) / 1000);
@@ -504,15 +503,17 @@ export class Game {
     
     // Use particle preset for food collection
     const preset = comboMultiplier > 1 ? ParticlePresets.COMBO_BURST : ParticlePresets.FOOD_COLLECT;
-    const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
     
-    // Use particle system's emit method
-    this.particleSystem.emit(
-      pos.x + this.renderer.cellSize / 2,
-      pos.y + this.renderer.cellSize / 2,
-      preset.count,
-      color
-    );
+    // Emit particles with multiple colors for variety
+    const particlesPerColor = Math.floor(preset.count / preset.colors.length);
+    preset.colors.forEach(color => {
+      this.particleSystem.emit(
+        pos.x + this.renderer.cellSize / 2,
+        pos.y + this.renderer.cellSize / 2,
+        particlesPerColor,
+        color
+      );
+    });
     
     // Add floating score text
     this.floatingTexts.push(new FloatingText(
