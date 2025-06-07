@@ -597,16 +597,35 @@ export class Renderer {
 
       // Handle different color formats
       let colorString;
-      if (particle.color.startsWith("rgba(")) {
-        const match = particle.color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d\.]+\)/);
-        if (match) {
-          const [, r, g, b] = match;
-          colorString = `rgba(${r},${g},${b},${alpha})`;
+      if (typeof particle.color === 'string') {
+        if (particle.color.startsWith('rgba(')) {
+          // Extract RGB values from rgba format
+          const match = particle.color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d\.]+\)/);
+          if (match) {
+            const [, r, g, b] = match;
+            colorString = `rgba(${r},${g},${b},${alpha})`;
+          } else {
+            colorString = `rgba(255,255,255,${alpha})`; // Fallback to white
+          }
+        } else if (particle.color.startsWith('rgb(')) {
+          // Extract RGB values from rgb format
+          const match = particle.color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+          if (match) {
+            const [, r, g, b] = match;
+            colorString = `rgba(${r},${g},${b},${alpha})`;
+          } else {
+            colorString = `rgba(255,255,255,${alpha})`; // Fallback to white
+          }
+        } else if (particle.color.startsWith('#')) {
+          // Handle hex color
+          colorString = particle.color + Math.round(alpha * 255).toString(16).padStart(2, '0');
         } else {
-          colorString = particle.color;
+          // Assume it's a comma-separated RGB string like "255,0,0"
+          colorString = `rgba(${particle.color},${alpha})`;
         }
       } else {
-        colorString = `rgba(${particle.color}, ${alpha})`;
+        // Fallback for unexpected formats
+        colorString = `rgba(255,255,255,${alpha})`;
       }
 
       // Apply gradient colors
