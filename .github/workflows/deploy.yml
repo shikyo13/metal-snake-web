@@ -1,0 +1,23 @@
+name: Deploy Metal Snake Web
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, metal-snake-web]
+    
+    steps:
+    - name: Deploy application
+      run: |
+        cd /home/zero/metal-snake-web
+        git pull origin main
+        docker-compose build --no-cache
+        docker-compose up -d
+        
+    - name: Verify deployment
+      run: |
+        sleep 5
+        curl -f http://localhost:8085 || exit 1
+        echo "Deployment successful!"
