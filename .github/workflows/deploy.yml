@@ -12,6 +12,7 @@ jobs:
     - name: Deploy application
       run: |
         cd /home/zero/metal-snake-web
+        git config --global --add safe.directory /home/zero/metal-snake-web
         git pull origin main
         docker-compose build --no-cache
         docker-compose up -d
