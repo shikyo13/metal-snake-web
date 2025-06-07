@@ -1,8 +1,5 @@
 // js/systems/powerup.js
-import { PowerUpType, GameState } from '../config/constants.js';
-
-// Debug flag to enable additional visual debugging
-const DEBUG = false;
+import { PowerUpType, GameState, DEBUG } from '../config/constants.js';
 
 export class PowerUp {
     constructor(x, y, type, config) {

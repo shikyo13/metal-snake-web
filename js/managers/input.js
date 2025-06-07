@@ -94,21 +94,24 @@ export class InputManager {
     
     // Special handling for Escape key
     if (e.key === 'Escape') {
-      // First check if we're in fullscreen and exit it
-      if (document.fullscreenElement || document.webkitFullscreenElement) {
+      // Check if we're in fullscreen
+      const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+      
+      if (isFullscreen) {
+        // In fullscreen: only exit fullscreen, don't trigger other actions
         if (document.exitFullscreen) {
           document.exitFullscreen();
         } else if (document.webkitExitFullscreen) {
           document.webkitExitFullscreen();
         }
-      }
-      
-      // Then handle normal escape functions
-      if (this.currentState === GameState.PLAY || this.currentState === GameState.PAUSE) {
-        this.triggerAction('pause');
-      } else if (this.currentState === GameState.HIGHSCORES || 
-                 this.currentState === GameState.SETTINGS) {
-        this.triggerAction('back');
+      } else {
+        // Not in fullscreen: handle normal escape functions
+        if (this.currentState === GameState.PLAY || this.currentState === GameState.PAUSE) {
+          this.triggerAction('pause');
+        } else if (this.currentState === GameState.HIGHSCORES || 
+                   this.currentState === GameState.SETTINGS) {
+          this.triggerAction('back');
+        }
       }
       e.preventDefault();
       return;

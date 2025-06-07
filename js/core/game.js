@@ -1,5 +1,5 @@
 // js/core/game.js
-import { CONFIG, GameState, Direction, PowerUpType, SOUND_PRESETS } from '../config/constants.js';
+import { CONFIG, GameState, Direction, PowerUpType, SOUND_PRESETS, DEBUG } from '../config/constants.js';
 import { Snake } from './snake.js';
 import { Renderer } from './renderer.js';
 import { AssetLoader } from './assets.js';
@@ -12,7 +12,6 @@ import { AchievementSystem } from '../systems/achievement.js';
 import { ScoreManager } from '../systems/score.js';
 import { SoundManager } from '../systems/sound.js';
 
-const DEBUG = false;
 console.log('Loaded constants:', { GameState, PowerUpType });
 
 export class Game {
