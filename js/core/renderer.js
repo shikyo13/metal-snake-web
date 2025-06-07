@@ -1,8 +1,5 @@
 // js/core/renderer.js
-import { Direction, PowerUpType } from '../config/constants.js';
-
-// Debug flag to enable visual debugging features
-const DEBUG = false;
+import { Direction, PowerUpType, DEBUG } from '../config/constants.js';
 
 export class Renderer {
   constructor(canvas, config, assetLoader) {
@@ -170,14 +167,6 @@ export class Renderer {
     this.ctx.restore();
     
     this.drawGrid();
-  }
-
-  // Helper method to get grid position
-  getGridPosition(gridX, gridY) {
-    return {
-      x: this.xOffset + gridX * this.cellWidth + this.cellWidth / 2,
-      y: this.yOffset + gridY * this.cellHeight + this.cellHeight / 2
-    };
   }
 
   drawGrid() {
