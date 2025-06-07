@@ -428,21 +428,16 @@ export class Game {
     const pos = this.renderer.gridToScreen(head.x, head.y);
     const preset = ParticlePresets.DEATH_EXPLOSION;
     
-    for (let i = 0; i < preset.count; i++) {
-      const angle = (Math.PI * 2 * i) / preset.count;
-      const speed = preset.speed * (0.5 + Math.random() * 0.5);
-      const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
-      
-      this.particleSystem.particles.push({
-        x: pos.x + this.renderer.cellSize / 2,
-        y: pos.y + this.renderer.cellSize / 2,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: this.config.PARTICLE_LIFETIME,
-        color: color,
-        config: this.config
-      });
-    }
+    // Use the preset colors by picking one randomly
+    const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
+    
+    // Use particle system's emit method
+    this.particleSystem.emit(
+      pos.x + this.renderer.cellSize / 2,
+      pos.y + this.renderer.cellSize / 2,
+      preset.count,
+      color
+    );
     
     // Calculate game time
     const gameTime = Math.floor((Date.now() - this.gameStats.startTime) / 1000);
@@ -509,21 +504,15 @@ export class Game {
     
     // Use particle preset for food collection
     const preset = comboMultiplier > 1 ? ParticlePresets.COMBO_BURST : ParticlePresets.FOOD_COLLECT;
-    for (let i = 0; i < preset.count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = preset.speed * (0.5 + Math.random() * 0.5);
-      const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
-      
-      this.particleSystem.particles.push({
-        x: pos.x + this.renderer.cellSize / 2,
-        y: pos.y + this.renderer.cellSize / 2,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: this.config.PARTICLE_LIFETIME,
-        color: color,
-        config: this.config
-      });
-    }
+    const color = preset.colors[Math.floor(Math.random() * preset.colors.length)];
+    
+    // Use particle system's emit method
+    this.particleSystem.emit(
+      pos.x + this.renderer.cellSize / 2,
+      pos.y + this.renderer.cellSize / 2,
+      preset.count,
+      color
+    );
     
     // Add floating score text
     this.floatingTexts.push(new FloatingText(
