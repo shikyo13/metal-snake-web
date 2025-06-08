@@ -1,5 +1,8 @@
 // js/systems/powerup.js
 import { PowerUpType, GameState, DEBUG } from '../config/constants.js';
+import { FloatingText, ParticlePresets } from './effects.js';
+import { errorManager } from './error.js';
+import { MathUtils } from '../utils/math.js';
 
 export class PowerUp {
     constructor(x, y, type, config) {
@@ -21,13 +24,24 @@ export class PowerUp {
     }
 
     apply(game) {
-        this.collected = true;
-        if (DEBUG) {
-            console.log(`Applying power-up: ${this.type}`);
-        }
+        try {
+            this.collected = true;
+            if (DEBUG) {
+                console.log(`Applying power-up: ${this.type}`);
+            }
 
-        // Apply the power-up effect
-        switch (this.type) {
+            // Check if power-up is already active
+            if (game.powerUpManager.activePowerUps[this.type]) {
+                // Refresh duration but don't stack effects
+                game.powerUpManager.activePowerUps[this.type] = this.duration;
+                if (game.soundManager) {
+                    game.soundManager.playPowerUpSound(this.type);
+                }
+                return;
+            }
+
+            // Apply the power-up effect
+            switch (this.type) {
             case PowerUpType.SPEED_BOOST:
                 game.config.GAME_SPEED += 3;
                 break;
@@ -47,8 +61,17 @@ export class PowerUp {
                 game.config.GAME_SPEED *= 0.25;
                 break;
             default:
-                console.warn("Unhandled power-up type:", this.type);
-                return;
+                throw new Error(`Unknown power-up type: ${this.type}`);
+        }
+        } catch (error) {
+            errorManager.handleError(error, {
+                type: 'powerup',
+                strategy: 'powerup',
+                powerUpType: this.type,
+                position: { x: this.x, y: this.y },
+                defaultValue: null
+            }, 'warning');
+            return;
         }
 
         // Set duration and play sound effect
@@ -59,11 +82,12 @@ export class PowerUp {
     }
 
     expire(game) {
-        if (DEBUG) {
-            console.log(`Power-up expired: ${this.type}`);
-        }
+        try {
+            if (DEBUG) {
+                console.log(`Power-up expired: ${this.type}`);
+            }
 
-        // Remove power-up effect
+            // Remove power-up effect
         switch (this.type) {
             case PowerUpType.SPEED_BOOST:
                 game.config.GAME_SPEED = Math.max(
@@ -88,6 +112,14 @@ export class PowerUp {
                 break;
         }
         delete game.powerUpManager.activePowerUps[this.type];
+        } catch (error) {
+            errorManager.handleError(error, {
+                type: 'powerup',
+                strategy: 'powerup',
+                operation: 'expire',
+                powerUpType: this.type
+            }, 'warning');
+        }
     }
 }
 
@@ -189,6 +221,9 @@ export class PowerUpManager {
                 pu.apply(game);
                 game.achievementSystem.recordPowerUpCollection(pu.type);
                 
+                // Update game statistics
+                game.gameStats.powerUpsCollected++;
+                
                 // Award bonus score
                 const baseBonus = 5;
                 const bonus = Math.round(baseBonus * game.scoreMultiplier);
@@ -196,12 +231,59 @@ export class PowerUpManager {
                 
                 // Create visual effects
                 const pos = game.renderer.gridToScreen(pu.x, pu.y);
-                game.particleSystem.emit(
+                
+                // Get power-up specific color
+                const powerUpColors = {
+                    speed_boost: game.config.COLORS.YELLOW,
+                    invincibility: game.config.COLORS.CYAN,
+                    score_multiplier: game.config.COLORS.MAGENTA,
+                    magnet: game.config.COLORS.GREEN,
+                    shrink: game.config.COLORS.ORANGE,
+                    time_slow: game.config.COLORS.PURPLE
+                };
+                const powerUpColor = powerUpColors[pu.type] || game.config.COLORS.WHITE;
+                
+                // Create pulse effect that contracts inward (like absorption)
+                game.effectsSystem.createPulse(
                     pos.x + game.renderer.cellSize / 2,
                     pos.y + game.renderer.cellSize / 2,
-                    game.config.PARTICLE_COUNT,
-                    "255,255,0"
+                    powerUpColor,
+                    game.renderer.cellSize * 3
                 );
+                
+                // Remove chromatic burst - it's causing the red flash
+                
+                // Use particle preset for power-up collection
+                const preset = ParticlePresets.POWERUP_COLLECT;
+                
+                // Emit particles with multiple colors for magical effect
+                const particlesPerColor = Math.floor(preset.count / preset.colors.length);
+                preset.colors.forEach(color => {
+                    game.particleSystem.emit(
+                        pos.x + game.renderer.cellSize / 2,
+                        pos.y + game.renderer.cellSize / 2,
+                        particlesPerColor,
+                        color
+                    );
+                });
+                
+                // Add floating text for power-up name
+                const powerUpNames = {
+                    speed_boost: "SPEED UP!",
+                    invincibility: "INVINCIBLE!",
+                    score_multiplier: "2X SCORE!",
+                    magnet: "MAGNET!",
+                    shrink: "SHRINK!",
+                    time_slow: "SLOW TIME!"
+                };
+                
+                game.floatingTexts.push(new FloatingText(
+                    pos.x + game.renderer.cellSize / 2,
+                    pos.y,
+                    powerUpNames[pu.type] || pu.type,
+                    game.config.COLORS.YELLOW,
+                    20
+                ));
                 
                 // Show score notification
                 game.notifications.push({
@@ -209,6 +291,9 @@ export class PowerUpManager {
                     duration: 60,
                     color: game.config.COLORS.YELLOW
                 });
+                
+                // Update progression challenges
+                game.progressionSystem.updateChallenge('collector', game.gameStats.powerUpsCollected);
                 
                 return false;  // Remove collected power-up
             }

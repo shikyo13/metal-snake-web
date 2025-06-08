@@ -4,28 +4,35 @@ export class CollisionSystem {
     this.config = config;
   }
   
-  // Check if a position collides with any segment of the snake
+  // Check if a position collides with any segment of the snake (excluding head)
   checkSnakeCollision(position, snake) {
-    return snake.body.some(seg => seg.x === position.x && seg.y === position.y);
+    // Skip the head (index 0) when checking collisions
+    return snake.body.slice(1).some(seg => seg.x === position.x && seg.y === position.y);
   }
   
   // Check if a position collides with any obstacle
   checkObstacleCollision(position, obstacles) {
+    if (!obstacles) return false;
     return obstacles.some(ob => ob.x === position.x && ob.y === position.y);
   }
   
   // Check if a position collides with any power-up
   checkPowerUpCollision(position, powerUps) {
-    return powerUps.some(pu => pu.x === position.x && pu.y === position.y);
+    if (!powerUps) return false;
+    return powerUps.some(pu => {
+      const puPos = pu.position ? pu.position() : pu;
+      return puPos.x === position.x && puPos.y === position.y;
+    });
   }
   
   // Check if a position collides with food
   checkFoodCollision(position, foodPos) {
-    return foodPos && position.x === foodPos.x && position.y === foodPos.y;
+    return !!(foodPos && position.x === foodPos.x && position.y === foodPos.y);
   }
   
   // Check if a position is outside game bounds
   checkBoundsCollision(position) {
+    if (!position || position.x === undefined || position.y === undefined) return true;
     return position.x < 0 || position.x >= this.config.GRID_COLS ||
            position.y < 0 || position.y >= this.config.GRID_ROWS;
   }

@@ -1,4 +1,6 @@
 // js/systems/sound.js
+import { errorManager } from './error.js';
+
 export class SoundManager {
   constructor(assetLoader) {
     this.assetLoader = assetLoader;
@@ -51,7 +53,11 @@ export class SoundManager {
       // Even if still suspended, we now allow the game to continue.
       this.isInitialized = true;
     } catch (err) {
-      console.error("SoundManager initialization error:", err);
+      errorManager.handleError(err, {
+        type: 'audio',
+        strategy: 'audio',
+        context: 'initialization'
+      }, 'warning');
       // Fallback: mark as initialized to allow game start.
       this.isInitialized = true;
     }

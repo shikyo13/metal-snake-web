@@ -1,4 +1,6 @@
 import { UI_CONFIG } from '../config/constants.js';
+import { MathUtils } from '../utils/math.js';
+import { errorManager } from './error.js';
 
 // The Particle class represents a single particle in the effect system
 export class Particle {
@@ -27,18 +29,26 @@ export class Particle {
   }
 
   update() {
-    // Update position based on velocity
-    this.x += this.dx;
-    
-    // Add gravity effect
-    this.dy += 0.1;
-    this.y += this.dy;
-    
-    // Decrease lifetime
-    this.life--;
-    
-    // Return whether particle is still alive
-    return this.life > 0;
+    try {
+      // Update position based on velocity
+      this.x += this.dx;
+      
+      // Add gravity effect
+      this.dy += 0.1;
+      this.y += this.dy;
+      
+      // Decrease lifetime
+      this.life = Math.max(0, this.life - 1);
+      
+      // Return whether particle is still alive
+      return this.life > 0;
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'particle_update',
+        particle: { x: this.x, y: this.y }
+      }, 'warning');
+      return false;
+    }
   }
 }
 

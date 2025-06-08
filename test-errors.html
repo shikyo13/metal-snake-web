@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error Handling Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #000;
+            color: #0f0;
+        }
+        button {
+            margin: 10px;
+            padding: 10px;
+            background: #333;
+            color: #0f0;
+            border: 1px solid #0f0;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #555;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #0f0;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Metal Snake Error Handling Test</h1>
+    
+    <div>
+        <button onclick="testAssetError()">Test Asset Loading Error</button>
+        <button onclick="testStorageError()">Test Storage Error</button>
+        <button onclick="testGameLoopError()">Test Game Loop Error</button>
+        <button onclick="testPowerUpError()">Test PowerUp Error</button>
+        <button onclick="testMemoryLeak()">Test Memory Leak Detection</button>
+        <button onclick="testLowFPS()">Test Low FPS Warning</button>
+        <button onclick="showErrorStats()">Show Error Stats</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div id="log"></div>
+    
+    <script type="module">
+        import { errorManager } from './js/systems/error.js';
+        import { performanceMonitor } from './js/systems/performance.js';
+        
+        // Make available globally for button clicks
+        window.errorManager = errorManager;
+        window.performanceMonitor = performanceMonitor;
+        
+        const log = document.getElementById('log');
+        
+        window.addLog = function(message) {
+            log.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        };
+        
+        window.testAssetError = function() {
+            addLog('Testing asset loading error...');
+            errorManager.handleAssetError('image', 'test-image.png', new Error('Failed to load'));
+            addLog('Asset error handled - check notifications');
+        };
+        
+        window.testStorageError = function() {
+            addLog('Testing storage error...');
+            const result = errorManager.handleError(new Error('Storage quota exceeded'), {
+                type: 'storage',
+                strategy: 'storage',
+                operation: 'save_scores'
+            }, 'warning');
+            addLog(`Storage error handled - result: ${JSON.stringify(result)}`);
+        };
+        
+        window.testGameLoopError = function() {
+            addLog('Testing game loop error...');
+            for (let i = 0; i < 5; i++) {
+                const result = errorManager.handleError(new Error('Render failed'), {
+                    type: 'game_loop',
+                    strategy: 'game_loop',
+                    errorCount: i + 1
+                }, 'critical');
+                addLog(`Game loop error ${i + 1} - stop: ${result?.stop || false}`);
+            }
+        };
+        
+        window.testPowerUpError = function() {
+            addLog('Testing power-up error...');
+            errorManager.handleError(new Error('Invalid power-up type'), {
+                type: 'powerup',
+                strategy: 'powerup',
+                powerUpType: 'INVALID_TYPE'
+            }, 'warning');
+            addLog('Power-up error handled');
+        };
+        
+        window.testMemoryLeak = function() {
+            addLog('Simulating memory leak...');
+            // Simulate increasing memory usage
+            const memoryValues = [100, 120, 140, 160, 180, 200, 220, 240, 260, 280];
+            performanceMonitor.metrics.memoryUsage = memoryValues;
+            performanceMonitor.recordMemoryUsage();
+            addLog('Memory leak simulation complete - check for warnings');
+        };
+        
+        window.testLowFPS = function() {
+            addLog('Simulating low FPS...');
+            // Add low FPS values
+            for (let i = 0; i < 20; i++) {
+                performanceMonitor.metrics.fps.push(15 + Math.random() * 10);
+            }
+            performanceMonitor.recordFrameTime();
+            addLog('Low FPS simulation complete - check for warnings');
+        };
+        
+        window.showErrorStats = function() {
+            const stats = errorManager.getErrorStats();
+            addLog(`Error Stats:\n${JSON.stringify(stats, null, 2)}`);
+        };
+        
+        window.clearLog = function() {
+            log.textContent = '';
+        };
+        
+        // Test notifications on load
+        addLog('Error handling test page loaded');
+        errorManager.showNotification('Test notification - Info level', 'info');
+        setTimeout(() => {
+            errorManager.showNotification('Test notification - Warning level', 'warning');
+        }, 1000);
+        setTimeout(() => {
+            errorManager.showNotification('Test notification - Critical level', 'critical');
+        }, 2000);
+    </script>
+</body>
+</html>
