@@ -6,13 +6,14 @@ export class CollisionSystem {
   
   // Check if a position collides with any segment of the snake (excluding head)
   checkSnakeCollision(position, snake) {
+    if (!position || !snake || !snake.body) return false;
     // Skip the head (index 0) when checking collisions
     return snake.body.slice(1).some(seg => seg.x === position.x && seg.y === position.y);
   }
   
   // Check if a position collides with any obstacle
   checkObstacleCollision(position, obstacles) {
-    if (!obstacles) return false;
+    if (!position || !obstacles) return false;
     return obstacles.some(ob => ob.x === position.x && ob.y === position.y);
   }
   
@@ -55,8 +56,8 @@ export class CollisionSystem {
     if (this.checkSnakeCollision(position, game.snake)) return false;
     if (this.checkBoundsCollision(position)) return false;
     if (game.obstacles && this.checkObstacleCollision(position, game.obstacles)) return false;
-    if (!excludeFood && this.checkFoodCollision(position, game.foodPos)) return false;
-    if (!excludePowerUps && game.powerUpManager && this.checkPowerUpCollision(position, game.powerUpManager.powerUps)) return false;
+    if (excludeFood && this.checkFoodCollision(position, game.foodPos)) return false;
+    if (excludePowerUps && game.powerUpManager && this.checkPowerUpCollision(position, game.powerUpManager.powerUps)) return false;
     
     return true;
   }

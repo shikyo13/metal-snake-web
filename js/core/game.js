@@ -168,19 +168,19 @@ export class Game {
       if (this.state === GameState.PLAY) {
         this.snake.setDirection(Direction.UP);
       }
-    });
+    }));
     
     this.inputManager.on('move_down', safeHandler(() => {
       if (this.state === GameState.PLAY) {
         this.snake.setDirection(Direction.DOWN);
       }
-    });
+    }));
     
     this.inputManager.on('move_left', safeHandler(() => {
       if (this.state === GameState.PLAY) {
         this.snake.setDirection(Direction.LEFT);
       }
-    });
+    }));
     
     this.inputManager.on('move_right', safeHandler(() => {
       if (this.state === GameState.PLAY) {
