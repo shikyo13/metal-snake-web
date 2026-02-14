@@ -13,7 +13,7 @@ export class PerformanceMonitor {
     
     this.maxSamples = 60;
     this.lastFrameTime = performance.now();
-    this.monitoringEnabled = CONFIG.DEBUG || !window.location.hostname.includes('localhost');
+    this.monitoringEnabled = CONFIG.DEBUG;
     this.reportInterval = 30000; // Report every 30 seconds
     this.lastReportTime = Date.now();
     

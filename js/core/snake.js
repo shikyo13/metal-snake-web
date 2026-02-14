@@ -83,7 +83,7 @@ export class Snake {
   }
 
   headPosition() {
-    return this.body[0];
+    return { ...this.body[0] };
   }
 
   updateSize(targetSize) {

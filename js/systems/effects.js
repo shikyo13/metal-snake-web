@@ -26,7 +26,7 @@ export class EffectsSystem {
   }
 
   // Slow motion for dramatic moments
-  slowMotion(factor = 0.3, duration = 1000) {
+  activateSlowMotion(factor = 0.3, duration = 1000) {
     this.slowMotion = {
       active: true,
       factor,

@@ -17,7 +17,7 @@ import { errorManager } from '../systems/error.js';
 import { MathUtils } from '../utils/math.js';
 import { performanceMonitor } from '../systems/performance.js';
 
-console.log('Loaded constants:', { GameState, PowerUpType });
+if (CONFIG.DEBUG) console.log('Loaded constants:', { GameState, PowerUpType });
 
 export class Game {
   constructor(canvas) {
@@ -150,7 +150,7 @@ export class Game {
     // Use CollisionSystem to find a valid position
     const options = {
       excludeFood: excludeFood,
-      excludePowerUps: false // Always check power-ups
+      excludePowerUps: true
     };
     
     return this.collisionSystem.findValidPosition(this, options);
@@ -376,6 +376,7 @@ export class Game {
     // Reset power-up system
     this.powerUpManager.powerUps = [];
     this.powerUpManager.activePowerUps = {};
+    this.powerUpManager.activePowerUpInstances = {};
     this.powerUpManager.spawnTimer = 0;
     
     // Reset game modifiers

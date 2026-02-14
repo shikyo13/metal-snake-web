@@ -38,9 +38,6 @@ export class Renderer {
       this.offscreenBackground = document.createElement('canvas');
       this.offscreenBackgroundCtx = this.offscreenBackground.getContext('2d');
       
-      // Add context loss handling
-      this.setupContextLossHandling();
-
       // Initialize visual effects
       this.createGradients();
       this.generateNoiseTexture();
@@ -54,21 +51,6 @@ export class Renderer {
     if (DEBUG) console.log('Renderer initialized with config:', config);
   }
 
-  setupContextLossHandling() {
-    this.canvas.addEventListener('webglcontextlost', (e) => {
-      e.preventDefault();
-      errorManager.handleError(new Error('WebGL context lost'), {
-        type: 'context_loss'
-      }, 'critical');
-    });
-    
-    this.canvas.addEventListener('webglcontextrestored', () => {
-      this.createGradients();
-      this.generateNoiseTexture();
-      errorManager.showNotification('Graphics context restored', 'info');
-    });
-  }
-  
   resize(width, height) {
     try {
       // Validate dimensions
@@ -563,12 +545,16 @@ export class Renderer {
             this.drawAchievementNotification(notification);
         } else {
             const alpha = Math.min(1, notification.duration / 60);
+            const c = notification.color || '#FFFFFF';
+            const r = parseInt(c.slice(1, 3), 16);
+            const g = parseInt(c.slice(3, 5), 16);
+            const b = parseInt(c.slice(5, 7), 16);
             this.drawText(
                 notification.text,
                 this.canvas.width / 2,
                 120 + (index * 30),
                 24,
-                `rgba(${notification.color}, ${alpha})`,
+                `rgba(${r}, ${g}, ${b}, ${alpha})`,
                 true
             );
         }

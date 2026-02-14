@@ -7,13 +7,14 @@ import { MathUtils } from '../utils/math.js';
 export class PowerUp {
     constructor(x, y, type, config) {
         this.x = x;
-        this.y = y;  // Removed the +50 offset that was causing positioning issues
+        this.y = y;
         this.type = type;
         this.config = config;
         this.duration = this.config.POWERUP_DURATION;
         this.remainingDuration = this.duration;
         this.collected = false;
-        
+        this.savedSpeed = null;
+
         if (DEBUG) {
             console.log(`Created power-up: ${type} at (${x}, ${y})`);
         }
@@ -33,6 +34,7 @@ export class PowerUp {
             // Apply the power-up effect
             switch (this.type) {
             case PowerUpType.SPEED_BOOST:
+                this.savedSpeed = game.config.GAME_SPEED;
                 game.config.GAME_SPEED += 3;
                 break;
             case PowerUpType.INVINCIBILITY:
@@ -48,6 +50,7 @@ export class PowerUp {
                 game.snake.shrinkActive = true;
                 break;
             case PowerUpType.TIME_SLOW:
+                this.savedSpeed = game.config.GAME_SPEED;
                 game.config.GAME_SPEED *= 0.25;
                 break;
             default:
@@ -64,6 +67,8 @@ export class PowerUp {
             return;
         }
 
+        // Store this PowerUp instance so expire can access savedSpeed
+        game.powerUpManager.activePowerUpInstances[this.type] = this;
         // Set duration and play sound effect
         game.powerUpManager.activePowerUps[this.type] = this.duration;
         if (game.soundManager) {
@@ -80,10 +85,10 @@ export class PowerUp {
             // Remove power-up effect
         switch (this.type) {
             case PowerUpType.SPEED_BOOST:
-                game.config.GAME_SPEED = Math.max(
-                    game.config.BASE_GAME_SPEED,
-                    game.config.GAME_SPEED - 3
-                );
+            case PowerUpType.TIME_SLOW:
+                game.config.GAME_SPEED = this.savedSpeed != null
+                    ? this.savedSpeed
+                    : game.config.BASE_GAME_SPEED;
                 break;
             case PowerUpType.INVINCIBILITY:
                 game.snake.invincible = false;
@@ -97,11 +102,9 @@ export class PowerUp {
             case PowerUpType.SHRINK:
                 game.snake.shrinkActive = false;
                 break;
-            case PowerUpType.TIME_SLOW:
-                game.config.GAME_SPEED = game.config.BASE_GAME_SPEED;
-                break;
         }
         delete game.powerUpManager.activePowerUps[this.type];
+        delete game.powerUpManager.activePowerUpInstances[this.type];
         } catch (error) {
             errorManager.handleError(error, {
                 type: 'powerup',
@@ -122,6 +125,7 @@ export class PowerUpManager {
 
         this.config = config;
         this.activePowerUps = {};
+        this.activePowerUpInstances = {};
         this.powerUps = [];
         this.spawnTimer = 0;
         this.magnetActive = false;
@@ -313,31 +317,32 @@ export class PowerUpManager {
 
     expirePowerUp(type, game) {
         if (DEBUG) this.debugLog(`Expiring: ${type}`);
-        
-        switch (type) {
-            case PowerUpType.SPEED_BOOST:
-                game.config.GAME_SPEED = Math.max(
-                    game.config.BASE_GAME_SPEED,
-                    game.config.GAME_SPEED - 3
-                );
-                break;
-            case PowerUpType.INVINCIBILITY:
-                game.snake.invincible = false;
-                break;
-            case PowerUpType.SCORE_MULTIPLIER:
-                game.scoreMultiplier = 1;
-                break;
-            case PowerUpType.MAGNET:
-                this.magnetActive = false;
-                break;
-            case PowerUpType.SHRINK:
-                game.snake.shrinkActive = false;
-                break;
-            case PowerUpType.TIME_SLOW:
-                game.config.GAME_SPEED = game.config.BASE_GAME_SPEED;
-                break;
+
+        const instance = this.activePowerUpInstances[type];
+        if (instance) {
+            instance.expire(game);
+        } else {
+            // Fallback: reset to base speed for speed-related power-ups
+            switch (type) {
+                case PowerUpType.SPEED_BOOST:
+                case PowerUpType.TIME_SLOW:
+                    game.config.GAME_SPEED = game.config.BASE_GAME_SPEED;
+                    break;
+                case PowerUpType.INVINCIBILITY:
+                    game.snake.invincible = false;
+                    break;
+                case PowerUpType.SCORE_MULTIPLIER:
+                    game.scoreMultiplier = 1;
+                    break;
+                case PowerUpType.MAGNET:
+                    this.magnetActive = false;
+                    break;
+                case PowerUpType.SHRINK:
+                    game.snake.shrinkActive = false;
+                    break;
+            }
+            delete this.activePowerUps[type];
+            delete this.activePowerUpInstances[type];
         }
-        
-        delete this.activePowerUps[type];
     }
 }

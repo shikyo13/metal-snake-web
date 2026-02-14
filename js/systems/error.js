@@ -284,21 +284,42 @@ export class ErrorManager {
       font-family: monospace;
     `;
 
-    content.innerHTML = `
-      <h2 style="color: #dc3545; margin-top: 0;">${title}</h2>
-      <p style="margin: 20px 0;">${message}</p>
-      ${details ? `<pre style="background: #000; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;">${details}</pre>` : ''}
-      <div style="margin-top: 20px; text-align: right;">
-        <button id="error-modal-refresh" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Refresh Page</button>
-        <button id="error-modal-close" style="background: #666; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Continue</button>
-      </div>
-    `;
+    const heading = document.createElement('h2');
+    heading.style.cssText = 'color: #dc3545; margin-top: 0;';
+    heading.textContent = title;
+    content.appendChild(heading);
+
+    const messagePara = document.createElement('p');
+    messagePara.style.cssText = 'margin: 20px 0;';
+    messagePara.textContent = message;
+    content.appendChild(messagePara);
+
+    if (details) {
+      const pre = document.createElement('pre');
+      pre.style.cssText = 'background: #000; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;';
+      pre.textContent = details;
+      content.appendChild(pre);
+    }
+
+    const buttonDiv = document.createElement('div');
+    buttonDiv.style.cssText = 'margin-top: 20px; text-align: right;';
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.style.cssText = 'background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;';
+    refreshBtn.textContent = 'Refresh Page';
+    refreshBtn.onclick = () => location.reload();
+
+    const closeBtn = document.createElement('button');
+    closeBtn.style.cssText = 'background: #666; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;';
+    closeBtn.textContent = 'Continue';
+    closeBtn.onclick = () => modal.remove();
+
+    buttonDiv.appendChild(refreshBtn);
+    buttonDiv.appendChild(closeBtn);
+    content.appendChild(buttonDiv);
 
     modal.appendChild(content);
     document.body.appendChild(modal);
-
-    document.getElementById('error-modal-refresh').onclick = () => location.reload();
-    document.getElementById('error-modal-close').onclick = () => modal.remove();
   }
 }
 

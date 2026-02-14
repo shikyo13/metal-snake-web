@@ -1,0 +1,14 @@
+.git
+node_modules
+__tests__
+__mocks__
+*.md
+.DS_Store
+coverage
+.github
+jest.config.js
+jest.setup.js
+docker-compose.yml
+Dockerfile
+.dockerignore
+.gitignore
