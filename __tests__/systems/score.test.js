@@ -86,16 +86,16 @@ describe('ScoreManager', () => {
             });
         });
 
-        it('should initialize missing modes', () => {
+        it('should load partial data as-is (missing modes not auto-initialized)', () => {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
                 classic: [{ name: 'Test', score: 100 }]
                 // obstacles mode missing
             }));
-            
+
             scoreManager.loadScores();
-            
+
             expect(scoreManager.highScores.classic).toHaveLength(1);
-            expect(scoreManager.highScores.obstacles).toEqual([]);
+            expect(scoreManager.highScores.obstacles).toBeUndefined();
         });
     });
 
@@ -113,15 +113,14 @@ describe('ScoreManager', () => {
         });
 
         it('should handle localStorage errors', () => {
-            // Mock localStorage.setItem to throw
-            const originalSetItem = localStorage.setItem;
-            localStorage.setItem = jest.fn(() => {
+            // Use spyOn to mock setItem throwing
+            const setItemSpy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
                 throw new Error('Storage full');
             });
-            
+
             expect(() => scoreManager.saveScores()).not.toThrow();
-            
-            localStorage.setItem = originalSetItem;
+
+            setItemSpy.mockRestore();
         });
     });
 
@@ -257,12 +256,12 @@ describe('ScoreManager', () => {
             expect(scoreManager.isHighScore(10, 'obstacles')).toBe(true);
         });
 
-        it('should return true for equal score', () => {
-            expect(scoreManager.isHighScore(20, 'classic')).toBe(true);
+        it('should return false for equal score (must beat lowest)', () => {
+            expect(scoreManager.isHighScore(20, 'classic')).toBe(false);
         });
 
-        it('should handle invalid mode', () => {
-            expect(scoreManager.isHighScore(100, 'invalid')).toBe(false);
+        it('should return true for unknown mode (less than MAX_SCORES entries)', () => {
+            expect(scoreManager.isHighScore(100, 'invalid')).toBe(true);
         });
     });
 

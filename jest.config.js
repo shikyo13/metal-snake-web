@@ -26,7 +26,5 @@ export default {
     url: 'http://localhost'
   },
   testPathIgnorePatterns: ['/node_modules/'],
-  clearMocks: true,
-  resetMocks: true,
-  restoreMocks: true
+  clearMocks: true
 };

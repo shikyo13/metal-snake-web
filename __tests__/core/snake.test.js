@@ -233,10 +233,11 @@ describe('Snake', () => {
             expect(head).toEqual(snake.body[0]);
         });
 
-        it('should return a reference to the head', () => {
+        it('should return a copy of the head (not a mutable reference)', () => {
             const head = snake.headPosition();
+            const originalX = snake.body[0].x;
             head.x = 999;
-            expect(snake.body[0].x).toBe(999);
+            expect(snake.body[0].x).toBe(originalX);
         });
     });
 

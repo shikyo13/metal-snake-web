@@ -31,6 +31,15 @@ export class PowerUp {
                 console.log(`Applying power-up: ${this.type}`);
             }
 
+            // If this type is already active, just refresh the duration
+            if (game.powerUpManager.activePowerUps[this.type]) {
+                game.powerUpManager.activePowerUps[this.type] = this.duration;
+                if (game.soundManager) {
+                    game.soundManager.playPowerUpSound(this.type);
+                }
+                return;
+            }
+
             // Apply the power-up effect
             switch (this.type) {
             case PowerUpType.SPEED_BOOST:
