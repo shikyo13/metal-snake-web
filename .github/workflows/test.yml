@@ -1,0 +1,75 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, develop, 'feature/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: [self-hosted, metal-snake-web]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci --no-audit --no-fund
+        
+    - name: Run linting
+      run: |
+        # No linting configured yet, skip for now
+        echo "Linting not configured"
+        
+    - name: Run tests
+      run: |
+        npm test
+        
+    - name: Generate coverage report
+      run: |
+        npm run coverage
+        
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage/
+        retention-days: 7
+        
+    - name: Check coverage thresholds
+      run: |
+        echo "Coverage report:"
+        cat coverage/lcov-report/index.html | grep -A 10 "fraction" || true
+        
+  test-docker:
+    runs-on: [self-hosted, metal-snake-web]
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Build Docker image
+      run: |
+        docker build -t metal-snake-test:${{ github.sha }} .
+        
+    - name: Test Docker container
+      run: |
+        docker run -d --name metal-snake-test-${{ github.sha }} -p 8086:80 metal-snake-test:${{ github.sha }}
+        sleep 5
+        curl -f http://localhost:8086 || exit 1
+        docker stop metal-snake-test-${{ github.sha }}
+        docker rm metal-snake-test-${{ github.sha }}
+        
+    - name: Clean up test image
+      if: always()
+      run: |
+        docker rmi metal-snake-test:${{ github.sha }} || true

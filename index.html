@@ -103,9 +103,33 @@
             height: 100%;
             background: #0f0;
             box-shadow: 0 0 10px #0f0;
-            transition: width 0.3s;
+            animation: loadProgress 1.5s ease-in-out forwards;
+        }
+
+        @keyframes loadProgress {
+            0% { width: 0%; }
+            60% { width: 70%; }
+            100% { width: 95%; }
         }
     </style>
+    
+    <!-- Sentry Error Tracking - disabled until a valid DSN is configured
+    <script>
+        if (!window.location.hostname.includes('localhost') &&
+            !window.location.hostname.includes('127.0.0.1') &&
+            !window.location.hostname.includes('0.0.0.0')) {
+            const script = document.createElement('script');
+            script.src = 'https://browser.sentry-cdn.com/7.109.0/bundle.min.js';
+            script.crossOrigin = 'anonymous';
+            script.onload = function() {
+                if (window.Sentry) {
+                    window.SENTRY_DSN = 'YOUR_SENTRY_DSN_HERE';
+                }
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+    -->
 </head>
 <body>
     <div class="game-container">
@@ -126,6 +150,7 @@
     <script type="module">
         import { Game } from './js/core/game.js';
         import { GameState } from './js/config/constants.js';
+        import { errorManager } from './js/systems/error.js';
 		
 		
 
@@ -141,11 +166,17 @@
                 window.gameInstance = this.instance;
                 
                 try {
+                    // Initialize Sentry if available
+                    if (window.SENTRY_DSN) {
+                        errorManager.initSentry(window.SENTRY_DSN);
+                    }
+                    
                     await this.instance.start();
                     this.initialized = true;
                     this.hideLoadingScreen();
                 } catch (error) {
                     console.error('Failed to initialize game:', error);
+                    errorManager.showNotification('Failed to initialize game', 'critical');
                     this.hideLoadingScreen();
                 }
             },

@@ -39,7 +39,15 @@ Production details:
 - Workflow: .github/workflows/deploy.yml (on prod server)
 
 ### Testing
-No automated tests are configured. Test manually by opening index.html in a browser.
+```bash
+# Run Jest tests
+npx jest
+
+# Run with coverage
+npx jest --coverage
+```
+Tests are located in `__tests__/` (core and systems subdirectories).
+Manual testing: open index.html in a browser.
 
 ## Architecture
 

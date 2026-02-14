@@ -166,6 +166,51 @@ metal-snake-web/
         └── sound.js           # SoundManager using the Web Audio API
 ```
 
+## Testing
+
+### Running Tests
+
+The project uses Jest for unit testing with comprehensive test coverage for all core systems.
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Run tests:**
+   ```bash
+   npm test
+   ```
+
+3. **Run tests with coverage:**
+   ```bash
+   npm run coverage
+   ```
+
+4. **Watch mode for development:**
+   ```bash
+   npm run test:watch
+   ```
+
+### Test Coverage
+
+The test suite includes comprehensive coverage for:
+- **Snake class**: Movement, collision detection, growth mechanics
+- **PowerUpManager**: All 6 power-up types, spawning, collection, expiration
+- **ScoreManager**: Score calculation, high score persistence, combo multipliers
+- **CollisionSystem**: Boundary, self-collision, obstacle, and power-up detection
+- **Game class**: State transitions, game loop, initialization
+
+Target coverage is 80% for all metrics (statements, branches, functions, lines).
+
+### Continuous Integration
+
+Tests automatically run on every push and pull request via GitHub Actions. The CI pipeline:
+- Runs all unit tests
+- Generates coverage reports
+- Builds and tests the Docker container
+- Uploads coverage artifacts for review
+
 ## Technical Details
 
 **Rendering:**

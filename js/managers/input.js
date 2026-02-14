@@ -11,32 +11,24 @@ export class InputManager {
       'ArrowRight': 'move_right',
       'w': 'move_up',
       'W': 'move_up',
-      's': 'move_down',
-      'S': 'move_down',
       'a': 'move_left',
       'A': 'move_left',
       'd': 'move_right',
       'D': 'move_right',
-      
+
       // Game control keys
       'Escape': 'pause',
-      'p': 'pause',
-      'P': 'pause',
       'm': 'toggle_music',
       'M': 'toggle_music',
-      
+
       // Menu navigation
       'Enter': 'select',
-      'p': 'play',
-      'P': 'play',
       'h': 'highscores',
       'H': 'highscores',
       'o': 'toggle_obstacles',
       'O': 'toggle_obstacles',
       'b': 'back',
       'B': 'back',
-      's': 'settings',
-      'S': 'settings',
       '+': 'volume_up',
       '=': 'volume_up',
       '-': 'volume_down',
@@ -119,23 +111,27 @@ export class InputManager {
     
     // Handle context-specific keys
     const key = e.key.toLowerCase();
-    
-    // During gameplay, s/S should move down, not open settings
-    if (this.currentState === GameState.PLAY) {
-      if (key === 's') {
-        this.triggerAction('move_down');
-        e.preventDefault();
-        return;
+
+    // p/P: pause during gameplay, play from menu
+    if (key === 'p') {
+      if (this.currentState === GameState.PLAY || this.currentState === GameState.PAUSE) {
+        this.triggerAction('pause');
+      } else if (this.currentState === GameState.MENU) {
+        this.triggerAction('play');
       }
+      e.preventDefault();
+      return;
     }
-    
-    // In menu, s/S should open settings
-    if (this.currentState === GameState.MENU) {
-      if (key === 's') {
+
+    // s/S: move down during gameplay, settings from menu
+    if (key === 's') {
+      if (this.currentState === GameState.PLAY) {
+        this.triggerAction('move_down');
+      } else if (this.currentState === GameState.MENU) {
         this.triggerAction('settings');
-        e.preventDefault();
-        return;
       }
+      e.preventDefault();
+      return;
     }
     
     // Get the base action from key mapping

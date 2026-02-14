@@ -24,6 +24,8 @@ export class Snake {
     this.actualDirection = Direction.RIGHT; // Track last actual movement
     this.invincible = false;
     this.size = 1.0;
+    this.shrinkActive = false;
+    this.positionHistory = []; // Track position history for trail effects
   }
 
   setDirection(newDir) {
@@ -66,14 +68,14 @@ export class Snake {
       if (this.body.some(seg => seg.x === head.x && seg.y === head.y)) {
         return false;
       }
-      if (obstacles.some(ob => ob.x === head.x && ob.y === head.y)) {
+      if (obstacles && obstacles.some(ob => ob.x === head.x && ob.y === head.y)) {
         return false;
       }
     }
 
     // Update snake body
     this.body.unshift(head);
-    if (!(head.x === foodPos.x && head.y === foodPos.y)) {
+    if (!foodPos || !(head.x === foodPos.x && head.y === foodPos.y)) {
       this.body.pop();
     }
 
@@ -81,7 +83,7 @@ export class Snake {
   }
 
   headPosition() {
-    return this.body[0];
+    return { ...this.body[0] };
   }
 
   updateSize(targetSize) {

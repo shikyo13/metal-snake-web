@@ -1,53 +1,81 @@
 // js/core/renderer.js
 import { Direction, PowerUpType, DEBUG } from '../config/constants.js';
+import { errorManager } from '../systems/error.js';
+import { MathUtils } from '../utils/math.js';
 
 export class Renderer {
   constructor(canvas, config, assetLoader) {
+    if (!canvas) {
+      throw new Error('Canvas element is required for Renderer');
+    }
+    
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
+    
+    if (!this.ctx) {
+      const error = new Error('Failed to create 2D rendering context');
+      errorManager.handleError(error, {
+        type: 'canvas_context',
+        strategy: 'canvas_context'
+      }, 'critical');
+      throw error;
+    }
+    
     this.config = config;
     this.assetLoader = assetLoader;
     this.cellSize = config.BASE_CELL_SIZE;
     this.xOffset = 0;
     this.yOffset = 0;
 
-    // Create auxiliary canvases for performance optimization
-    this.bgCanvas = document.createElement('canvas');
-    this.bgCtx = this.bgCanvas.getContext('2d');
+    try {
+      // Create auxiliary canvases for performance optimization
+      this.bgCanvas = document.createElement('canvas');
+      this.bgCtx = this.bgCanvas.getContext('2d');
 
-    this.noiseCanvas = document.createElement('canvas');
-    this.noiseCtx = this.noiseCanvas.getContext('2d');
+      this.noiseCanvas = document.createElement('canvas');
+      this.noiseCtx = this.noiseCanvas.getContext('2d');
 
-    this.offscreenBackground = document.createElement('canvas');
-    this.offscreenBackgroundCtx = this.offscreenBackground.getContext('2d');
-
-    // Initialize visual effects
-    this.createGradients();
-    this.generateNoiseTexture();
+      this.offscreenBackground = document.createElement('canvas');
+      this.offscreenBackgroundCtx = this.offscreenBackground.getContext('2d');
+      
+      // Initialize visual effects
+      this.createGradients();
+      this.generateNoiseTexture();
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'renderer_initialization',
+        phase: 'auxiliary_canvases'
+      }, 'warning');
+    }
 
     if (DEBUG) console.log('Renderer initialized with config:', config);
   }
 
   resize(width, height) {
-    // Reserve space for the instruction box at bottom (approximately 50px with new compact style)
-    const instructionHeight = 50;
-    const availableHeight = height - instructionHeight;
-    
-    // Resize all canvases
-    this.canvas.width = width;
-    this.canvas.height = height;
-    this.bgCanvas.width = width;
-    this.bgCanvas.height = height;
-    this.noiseCanvas.width = width;
-    this.noiseCanvas.height = height;
-    this.offscreenBackground.width = width;
-    this.offscreenBackground.height = height;
+    try {
+      // Validate dimensions
+      width = MathUtils.clamp(width, 100, 10000);
+      height = MathUtils.clamp(height, 100, 10000);
+      
+      // Reserve space for the instruction box at bottom (approximately 50px with new compact style)
+      const instructionHeight = 50;
+      const availableHeight = height - instructionHeight;
+      
+      // Resize all canvases
+      this.canvas.width = width;
+      this.canvas.height = height;
+      this.bgCanvas.width = width;
+      this.bgCanvas.height = height;
+      this.noiseCanvas.width = width;
+      this.noiseCanvas.height = height;
+      this.offscreenBackground.width = width;
+      this.offscreenBackground.height = height;
 
-    // Calculate target cell size based on screen dimensions
-    // Aim for approximately 40-50 columns on standard screens
-    const baseTargetCells = 45;
-    const targetCellSize = Math.max(
-      Math.floor(width / baseTargetCells),
+      // Calculate target cell size based on screen dimensions
+      // Aim for approximately 40-50 columns on standard screens
+      const baseTargetCells = 45;
+      const targetCellSize = Math.max(
+        Math.floor(width / baseTargetCells),
       20 // Minimum cell size to prevent things from getting too tiny
     );
     
@@ -71,32 +99,31 @@ export class Renderer {
     this.xOffset = 0;
     this.yOffset = 0;
 
-    this.createGradients();
-    this.generateNoiseTexture();
-    this.updateOffscreenBackground();
+      this.createGradients();
+      this.generateNoiseTexture();
+      this.updateOffscreenBackground();
 
-    // Always log resize info for debugging
-    console.log('Resize calculations:', {
-      browserWidth: width,
-      browserHeight: height,
-      availableHeight,
-      targetCellSize,
-      actualCellSize: this.cellSize,
-      dynamicCols: this.dynamicCols,
-      dynamicRows: this.dynamicRows,
-      gameWidth: this.cellSize * this.dynamicCols,
-      gameHeight: this.cellSize * this.dynamicRows,
-      isFullscreen: document.fullscreenElement !== null
-    });
-
-    if (DEBUG) {
-      console.log('Renderer resized:', {
+      // Always log resize info for debugging
+      if (DEBUG) {
+        console.log('Resize calculations:', {
+          browserWidth: width,
+          browserHeight: height,
+          availableHeight,
+          targetCellSize,
+          actualCellSize: this.cellSize,
+          dynamicCols: this.dynamicCols,
+          dynamicRows: this.dynamicRows,
+          gameWidth: this.cellSize * this.dynamicCols,
+          gameHeight: this.cellSize * this.dynamicRows,
+          isFullscreen: document.fullscreenElement !== null
+        });
+      }
+    } catch (error) {
+      errorManager.handleError(error, {
+        type: 'resize',
         width,
-        height,
-        cellSize: this.cellSize,
-        xOffset: this.xOffset,
-        yOffset: this.yOffset
-      });
+        height
+      }, 'warning');
     }
   }
 
@@ -147,7 +174,12 @@ export class Renderer {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  drawAnimatedBackground(frameCount) {
+  drawAnimatedBackground(frameCount, effectsSystem) {
+    // Apply screen shake before drawing
+    if (effectsSystem) {
+      effectsSystem.applyToCanvas(this.ctx);
+    }
+    
     // Draw the cached background
     this.ctx.drawImage(this.offscreenBackground, 0, 0);
     
@@ -192,7 +224,12 @@ export class Renderer {
     }
   }
 
-  drawSnake(snake, frameCount) {
+  drawSnake(snake, frameCount, trail) {
+    // Draw snake trail first
+    if (trail) {
+      trail.render(this.ctx, this.cellSize);
+    }
+    
     snake.body.forEach((segment, index) => {
       const pos = this.gridToScreen(segment.x, segment.y);
       const isHead = index === 0;
@@ -508,12 +545,16 @@ export class Renderer {
             this.drawAchievementNotification(notification);
         } else {
             const alpha = Math.min(1, notification.duration / 60);
+            const c = notification.color || '#FFFFFF';
+            const r = parseInt(c.slice(1, 3), 16);
+            const g = parseInt(c.slice(3, 5), 16);
+            const b = parseInt(c.slice(5, 7), 16);
             this.drawText(
                 notification.text,
                 this.canvas.width / 2,
                 120 + (index * 30),
                 24,
-                `rgba(${notification.color}, ${alpha})`,
+                `rgba(${r}, ${g}, ${b}, ${alpha})`,
                 true
             );
         }
@@ -537,7 +578,7 @@ export class Renderer {
 
   drawMenu(game) {
     // Draw animated background with overlay
-    this.drawAnimatedBackground(game.frameCount);
+    this.drawAnimatedBackground(game.frameCount, game.effectsSystem);
     this.drawOverlay(0.5);
 
     // Draw game title
@@ -587,16 +628,35 @@ export class Renderer {
 
       // Handle different color formats
       let colorString;
-      if (particle.color.startsWith("rgba(")) {
-        const match = particle.color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d\.]+\)/);
-        if (match) {
-          const [, r, g, b] = match;
-          colorString = `rgba(${r},${g},${b},${alpha})`;
+      if (typeof particle.color === 'string') {
+        if (particle.color.startsWith('rgba(')) {
+          // Extract RGB values from rgba format
+          const match = particle.color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d\.]+\)/);
+          if (match) {
+            const [, r, g, b] = match;
+            colorString = `rgba(${r},${g},${b},${alpha})`;
+          } else {
+            colorString = `rgba(255,255,255,${alpha})`; // Fallback to white
+          }
+        } else if (particle.color.startsWith('rgb(')) {
+          // Extract RGB values from rgb format
+          const match = particle.color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+          if (match) {
+            const [, r, g, b] = match;
+            colorString = `rgba(${r},${g},${b},${alpha})`;
+          } else {
+            colorString = `rgba(255,255,255,${alpha})`; // Fallback to white
+          }
+        } else if (particle.color.startsWith('#')) {
+          // Handle hex color
+          colorString = particle.color + Math.round(alpha * 255).toString(16).padStart(2, '0');
         } else {
-          colorString = particle.color;
+          // Assume it's a comma-separated RGB string like "255,0,0"
+          colorString = `rgba(${particle.color},${alpha})`;
         }
       } else {
-        colorString = `rgba(${particle.color}, ${alpha})`;
+        // Fallback for unexpected formats
+        colorString = `rgba(255,255,255,${alpha})`;
       }
 
       // Apply gradient colors
@@ -702,5 +762,11 @@ export class Renderer {
     const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) + amount));
     const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) + amount));
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+  
+  renderEffects(effectsSystem) {
+    if (effectsSystem) {
+      effectsSystem.renderEffects(this.ctx);
+    }
   }
 }

@@ -40,12 +40,10 @@ RUN echo 'server { \
     location ~ \.js$ { \
         add_header Content-Type application/javascript; \
     } \
-    # Enable CORS for development \
-    add_header Access-Control-Allow-Origin "*"; \
-    # Add security headers \
+    # Security headers \
     add_header X-Content-Type-Options "nosniff"; \
     add_header X-Frame-Options "SAMEORIGIN"; \
-    add_header X-XSS-Protection "1; mode=block"; \
+    add_header Content-Security-Policy "default-src '"'"'self'"'"'; script-src '"'"'self'"'"' '"'"'unsafe-inline'"'"'; style-src '"'"'self'"'"' '"'"'unsafe-inline'"'"' https://fonts.googleapis.com; font-src '"'"'self'"'"' https://fonts.gstatic.com; img-src '"'"'self'"'"' data:; connect-src '"'"'self'"'"'"; \
 }' > /etc/nginx/conf.d/default.conf
 
 # Expose port 80
