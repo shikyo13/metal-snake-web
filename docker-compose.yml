@@ -6,6 +6,8 @@ services:
     volumes:
       # Mount the game assets volume to persist high scores
       - metal-snake-data:/usr/share/nginx/html/data
+    mem_limit: 64m
+    cpus: 0.25
     restart: always
 
 volumes:
