@@ -1,5 +1,34 @@
 # Metal Snake
 
+A retro-styled snake game with a Heavy Metal theme, available in two versions:
+
+- **[Web Version](#web-version)** — HTML5 Canvas with modern JavaScript, playable at [metalsnake.zeronexus.net](https://metalsnake.zeronexus.net/)
+- **[Python CLI Version](#python-cli-version)** — Pygame-based desktop version with glow effects, power-ups, and sound synthesis
+
+---
+
+## Python CLI Version
+
+The `python/` directory contains a standalone Pygame implementation featuring:
+
+- Background music and programmatic sound synthesis
+- Magnet, speed, and other power-ups
+- Glow and particle visual effects with object pooling
+- High score persistence
+- Responsive window resizing
+
+### Running
+
+```bash
+cd python
+pip install pygame numpy
+python src/metalsnake/snake.py
+```
+
+---
+
+## Web Version
+
 Metal Snake is a retro-styled snake game with a Heavy Metal theme built for the web using HTML5 Canvas and modern JavaScript (ES6 modules). The game features smooth client‑side rendering with dynamic visual effects, multiple power‑ups with distinct audio and visual feedback, combo scoring, and responsive design for both desktop and mobile devices.
 
 ## Table of Contents
