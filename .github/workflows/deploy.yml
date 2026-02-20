@@ -1,4 +1,4 @@
-name: Deploy Metal Snake Web
+name: Deploy MetalSnake
 
 on:
   push:
