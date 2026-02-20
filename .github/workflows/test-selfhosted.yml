@@ -19,14 +19,15 @@ jobs:
     - name: Checkout branch
       run: |
         cd /home/zero/metal-snake-web
+        git fetch origin
+        git checkout -- .
         # For PRs, checkout the PR branch
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}
           git checkout pr-${{ github.event.pull_request.number }}
         else
-          git fetch origin ${{ github.ref_name }}
           git checkout ${{ github.ref_name }}
-          git pull origin ${{ github.ref_name }}
+          git reset --hard origin/${{ github.ref_name }}
         fi
         
     - name: Install dependencies
